@@ -11,8 +11,23 @@
     tools:context="bappleton.dft_test.MainActivity">
 
 
-    <com.jjoe64.graphview.GraphView
+    <LinearLayout
+        android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:id="@+id/graph"/>
+        android:layout_height="match_parent">
+
+        <Button
+            android:text="Update"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/button_update"
+            android:onClick="getSample"/>
+
+        <com.jjoe64.graphview.GraphView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/graph"/>
+
+    </LinearLayout>
+
 </RelativeLayout>

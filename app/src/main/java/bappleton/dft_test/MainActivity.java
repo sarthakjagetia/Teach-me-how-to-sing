@@ -5,13 +5,16 @@ import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 
 import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.series.BaseSeries;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
@@ -25,10 +28,15 @@ public class MainActivity extends AppCompatActivity {
     boolean PERMISSIONS_RECORD_AUDIO = false;
     LineGraphSeries<DataPoint> series;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        series = new LineGraphSeries<DataPoint>();
+        GraphView graph = (GraphView) findViewById(R.id.graph);
+        graph.addSeries(series);
 
         //define FFT size (must be a power of 2)
         int N = 512;
@@ -79,8 +87,6 @@ public class MainActivity extends AppCompatActivity {
         Log.i("fft-pow", Arrays.toString(power));
         Log.i("fft-freq", Arrays.toString(frequency));
 
-        GraphView graph = (GraphView) findViewById(R.id.graph);
-        series = new LineGraphSeries<DataPoint>();
 
         //store original signal in series variable
 //        for (int i=0; i<N; i++) {
@@ -90,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
         for (int i=0; i<N/2; i++) {
             series.appendData(new DataPoint(frequency[i], power[i]), true, N/2);
         }
-        graph.addSeries(series);
+
 
         //AUDIORECORD TESTING
 
@@ -100,8 +106,9 @@ public class MainActivity extends AppCompatActivity {
             Log.i("RECORD_AUDIO", "Permissions are good, continuing execution.");
         }
 
-        //Try to open an AudioRecord instance and get a sample
-        getSample();
+        //UNCOMMENT THIS BLOCK TO PLOT AN AUDIORECORD SAMPLE INSTEAD OF THE FFT OF THE GENERATED SINE WAVE
+        View view = null;
+        getSample(view);
     }
 
     public void checkPermissions(){
@@ -151,7 +158,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    protected void getSample() {
+    protected void refreshGraph() {
+        //do something
+
+    }
+
+    protected short[] getSample(View view) {
         //confgure AudioRecord paramters
         int audioSource = MediaRecorder.AudioSource.DEFAULT; //MediaRecorder.AudioSource.UNPROCESSED requires API24
         int sampleRateInHz = 44100;
@@ -194,8 +206,11 @@ public class MainActivity extends AppCompatActivity {
         AR1.startRecording();
 
         int AR1_result;
+
+        DataPoint[] data = new DataPoint[bufferElements];
+        //graph.addSeries(series);
         AR1_result = AR1.read(recorder_data, 0, bufferElements);
-        if (AR1_result == bufferElements || AR1_result == 0){
+        if (AR1_result == bufferElements || AR1_result == 0) {
             //read completed without error
             Log.i("AudioRecord", "Read successful");
         }
@@ -203,12 +218,25 @@ public class MainActivity extends AppCompatActivity {
             Log.e("AudioRecord", "Read error");
         }
 
+        //Stop recording and dump the AR1 handle
         AR1.stop(); //stops recording
         AR1.release(); //releases native resources; set AR1 to null after this call
         AR1 = null;
 
-        //see if we got something
-        Log.i("AudioRecordData", Arrays.toString(recorder_data));
+            //see if we got something
+            //Log.i("AudioRecordData", Arrays.toString(recorder_data));
+
+
+
+
+        for (int i = 0; i < bufferElements; i++) {
+            //series.appendData(new DataPoint(i, recorder_data[i]), true, bufferElements);
+            data[i]= new DataPoint(i, recorder_data[i]);
+        }
+
+        series.resetData(data);
+
+        return recorder_data;
 
     }
 }
