@@ -30,6 +30,8 @@ public class vocal extends AppCompatActivity {
     private final int CASE_GET_PITCH                = 1007;
     private final int CASE_START_MAIN_UI_PITCH_DETECTION = 1008;
     private final int CASE_STOP_MAIN_UI_PITCH_DETECTION  = 1009;
+    private final int CASE_READY_FOR_PITCH_REQUEST  = 1010;
+    private final int CASE_TEAR_DOWN_MAIN_UI_PITCH_DETECTION = 1011;
 
     //Define int constants for permission handling
     public final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2000;
@@ -39,7 +41,8 @@ public class vocal extends AppCompatActivity {
     private final int pitch_refresh_period = 1000; //Delay between UI updates for pitch, in ms
 
     //Define booleans to control application flow
-    private boolean MAIN_UI_PITCH_DETECTION_RUNNING = false;
+    private boolean MAIN_UI_PITCH_DETECTION_RUNNING = false; //Indicates whether the UI thread and pitch detect thread should be in a request pitch/receive pitch loop
+    private boolean MAIN_UI_PITCH_DETECTION_READY = false; //Indicates whether the pitch detect thread is ready to be asked for a pitch
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,6 +66,15 @@ public class vocal extends AppCompatActivity {
                     case CASE_BRIAN_WAS_HERE:
                         Log.i("UI_message", "holy sweet jesus");
                         break;
+                    case CASE_READY_FOR_PITCH_REQUEST:
+                        //we get this message back after sending CASE_START_DETECTION to the pitch_det thread
+                        MAIN_UI_PITCH_DETECTION_READY = true;
+                        MAIN_UI_PITCH_DETECTION_RUNNING = true;
+                        //kick off the pitch request loop by sending the first CASE_GET_PITCH message to the pitch_det thread. From here, pitch info is sent to CASE_RECEIVE_PITCH
+                        Message msg_get_first_pitch = Message.obtain();
+                        msg_get_first_pitch.what = CASE_GET_PITCH;
+                        pitch_det.pitchHandler.sendMessage(msg_get_first_pitch);
+                        break;
                     case CASE_RECEIVE_PITCH:
                         //Update UI with the pitch
                         updateUIPitchView(inputMessage.arg1);
@@ -74,14 +86,33 @@ public class vocal extends AppCompatActivity {
                         }
                         break;
                     case CASE_START_MAIN_UI_PITCH_DETECTION:
-                        MAIN_UI_PITCH_DETECTION_RUNNING = true;
+                        //MAIN_UI_PITCH_DETECTION_RUNNING = true;
                         //Send a new message to the background pitch thread to tell it to give us more pitch data
-                        Message msg_get_pitch = Message.obtain();
-                        msg_get_pitch.what = CASE_GET_PITCH;
-                        pitch_det.pitchHandler.sendMessage(msg_get_pitch);
+                        //Message msg_get_pitch = Message.obtain();
+                        //msg_get_pitch.what = CASE_GET_PITCH;
+                        //pitch_det.pitchHandler.sendMessage(msg_get_pitch);
+
+                        if (MAIN_UI_PITCH_DETECTION_READY){
+                            //If the pitch detection thread is already ready for a pitch request, go ahead and kick off the request loop
+                            MAIN_UI_PITCH_DETECTION_RUNNING = true;
+                            Message msg_get_first_pitch_1 = Message.obtain();
+                            msg_get_first_pitch_1.what = CASE_GET_PITCH;
+                            pitch_det.pitchHandler.sendMessage(msg_get_first_pitch_1);
+                        }
+                        else {
+                            //If it's not yet ready, ask the pitch detection thread to initialize and start recording. We'll get CASE_READY_FOR_PITCH_REQUEST back if it was successful
+                            Message msg_begin_detection = Message.obtain();
+                            msg_begin_detection.what = CASE_START_DETECTION;
+                            pitch_det.pitchHandler.sendMessage(msg_begin_detection);
+                        }
                         break;
                     case CASE_STOP_MAIN_UI_PITCH_DETECTION:
                         MAIN_UI_PITCH_DETECTION_RUNNING = false;
+                        break;
+                    case CASE_TEAR_DOWN_MAIN_UI_PITCH_DETECTION:
+                        //NOT CURRENTLY UTILIZED
+                        //Send a CASE_STOP_DETECTION to the pitch_det thread to destroy the pitch detection instance
+                        //Set MAIN_UI_PITCH_DETECTION_READY = false
                         break;
                     default:
                         //Let the parent class handle any messages that I don't
@@ -156,17 +187,18 @@ public class vocal extends AppCompatActivity {
                             //Print the ID of the thread
                             Log.i("BG_message:", Thread.currentThread().getName());
                             break;
-                        case CASE_INITIALIZE:
-                            pd.initialize();
-                            break;
-                        case CASE_TEAR_DOWN:
-                            pd.stop();
-                            break;
                         case CASE_START_DETECTION:
-                            pd.start();
+                            if(pd.initialize()) {
+                                pd.start();
+                                //send back a message to tell the UI thread that we're ready
+                                Message ready_msg = Message.obtain();
+                                ready_msg.what = CASE_READY_FOR_PITCH_REQUEST;
+                                mainHandler.sendMessage(ready_msg);
+                            }
                             break;
                         case CASE_STOP_DETECTION:
                             pd.stop();
+                            pd.tearDown();
                             break;
                         case CASE_GET_PITCH:
                             //get a pitch and send the info to the main UI message handle

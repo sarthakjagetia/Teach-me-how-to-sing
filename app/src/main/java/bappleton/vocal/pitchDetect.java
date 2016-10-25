@@ -18,6 +18,12 @@ public class pitchDetect {
     int bufferElements; //number of elements in the buffer
     short recorder_data[]; //array of shorts into which we'll read AR1 data. A short is a 16-bit signed integer.
 
+    //Declare fft object and signal arrays
+    FFT fft;
+    double[] re; //real part of time-domain signal, gets replaced with frequency-domain info when fft is run
+    double[] im; //imaginary part of time-domain signal, gets replaced with frequency-domain info when fft is run
+    double[] f;  //frequency data for each point in re and im arrays
+
     //Private booleans to indicate status of the AudioRecord object
     private boolean IS_AR1_INITIALIZED = false;
     private boolean IS_AR1_RECORDING   = false;
@@ -62,6 +68,18 @@ public class pitchDetect {
         //Allocate storage for the buffer into which we'll read audio samples
         recorder_data = new short[bufferElements];
 
+        //Prepare the FFT object
+        //Key variables: sampleRateInHz and bufferElements
+        fft = new FFT(bufferElements);
+        re = new double[bufferElements];
+        im = new double[bufferElements];
+        f  = new double[bufferElements];
+
+        //calculate and store the frequency data in f
+        for (int i=0; i<bufferElements; i++ ) {
+            f[i] = i*sampleRateInHz/bufferElements;
+        }
+
         return IS_AR1_INITIALIZED;
     }
 
@@ -92,6 +110,7 @@ public class pitchDetect {
         }
         AR1.release(); //releases native resources; set AR1 to null after this call
         AR1 = null;
+        //should we also de-allocate the recording data buffer?
         IS_AR1_INITIALIZED = false;
     }
 
@@ -99,15 +118,20 @@ public class pitchDetect {
         int AR1_result;
         boolean success = false;
 
-        AR1_result = AR1.read(recorder_data, 0, bufferElements);
+        if (IS_AR1_INITIALIZED && IS_AR1_RECORDING) {
+            AR1_result = AR1.read(recorder_data, 0, bufferElements);
 
-        if (AR1_result == bufferElements || AR1_result == 0) {
-            //read completed without error
-            Log.i("pitchDetect", "Read successful");
-            success = true;
+            if (AR1_result == bufferElements || AR1_result == 0) {
+                //read completed without error
+                Log.i("pitchDetect", "Read successful");
+                success = true;
+            } else {
+                Log.e("pitchDetect", "Read error");
+                success = false;
+            }
         }
         else {
-            Log.e("pitchDetect", "Read error");
+            Log.e("pitchDetect", "Can't read. Not initalized and recording.");
             success = false;
         }
 
@@ -115,6 +139,14 @@ public class pitchDetect {
     }
 
     public int getPitch() {
+
+        if(read()){
+
+        }
+
+
+
+
         //start with generating a random integer.
         Random rand = new Random();
         dominantPitch = rand.nextInt(50)+1; //1 to 50
