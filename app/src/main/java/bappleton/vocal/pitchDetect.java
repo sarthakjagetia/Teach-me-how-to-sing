@@ -31,6 +31,8 @@ public class pitchDetect {
     FastYin fy_pitchDetect;
     float recorder_data_yin[];
     PitchDetectionResult pitchDetectResult_yin;
+    AudioRecord.OnRecordPositionUpdateListener recordDataAvailable;
+    int pitch_yin = 0;
 
     //Private booleans to indicate status of the AudioRecord object
     private boolean IS_AR1_INITIALIZED = false;
@@ -38,6 +40,9 @@ public class pitchDetect {
 
     //Private variables to assist processing
     int dominantPitch = 0;
+    long time1 = 0;
+    long time2 = 0;
+    long time3 = 0;
 
     public boolean initialize(){
 
@@ -48,7 +53,8 @@ public class pitchDetect {
         //int audioFormat = AudioFormat.ENCODING_PCM_16BIT; //NEEDS to mesh with read() call and bytesPerElement; Use with reading into a short
         int audioFormat = AudioFormat.ENCODING_PCM_FLOAT;
         //bufferElements = 1024; //number of array elements to fetch from AudioRecord
-        bufferElements = 16384; //trying this
+        //bufferElements = 8192; //185 ms between samples
+        bufferElements = 16384; //370 ms between samples
         //int bytesPerElement = 2; //when reading into a short, each element consumes 2 bytes
         int bytesPerElement = 4; //when reading into a float, each element consumes 4 bytes
         int bufferSizeInBytes = bufferElements * bytesPerElement;
@@ -96,10 +102,35 @@ public class pitchDetect {
         //PREPARE A TARSOS YIN OBJECT FOR TESTING
         fy_pitchDetect = new FastYin(sampleRateInHz, bufferElements);
         recorder_data_yin = new float[bufferElements];
+        AR1.setPositionNotificationPeriod(bufferElements);
+        recordDataAvailable = new AudioRecord.OnRecordPositionUpdateListener() {
+            @Override
+            public void onMarkerReached(AudioRecord recorder) {
+                Log.i("pitchDetect", "OnMarkerReached");
+            }
+
+            @Override
+            public void onPeriodicNotification(AudioRecord recorder) {
+                //Log.i("pitchDetect", "OnPeriodicNotification");
+                //recorder.read(recorder_data_yin, 0, bufferElements, AudioRecord.READ_BLOCKING);
+                time1 = System.currentTimeMillis();
+                read_yin();
+                time2 = System.currentTimeMillis();
+                processYin();
+                Log.i("pitchDetect", "New recorder data. Read: " + (time2-time1) + " ms. Process: " + (System.currentTimeMillis()-time2)+ " ms. Fetch interval: " + (time1-time3) + " ms.");
+                time3 = System.currentTimeMillis();
+            }
+        };
+        AR1.setRecordPositionUpdateListener(recordDataAvailable);
         //END TARSOS YIN PREP
         ///
 
         return IS_AR1_INITIALIZED;
+    }
+
+    private void processYin() {
+        pitchDetectResult_yin = fy_pitchDetect.getPitch(recorder_data_yin);
+        pitch_yin = (int) pitchDetectResult_yin.getPitch();
     }
 
     public void start() {
@@ -127,8 +158,13 @@ public class pitchDetect {
         if (IS_AR1_RECORDING) {
             stop();
         }
-        AR1.release(); //releases native resources; set AR1 to null after this call
-        AR1 = null;
+        if (AR1 != null) {
+            AR1.release(); //releases native resources; set AR1 to null after this call
+            AR1 = null;
+        }
+        else{
+            Log.e("pitchDetect", "Cannot tear down. Null AudioRecord instance.");
+        }
         //should we also de-allocate the recording data buffer?
         IS_AR1_INITIALIZED = false;
     }
@@ -188,13 +224,22 @@ public class pitchDetect {
 
     public int getPitch() {
 
-        if(read_yin()){
-            pitchDetectResult_yin = fy_pitchDetect.getPitch(recorder_data_yin);
-            //we get a float back... can deal with that problem later. For now, truncate:
-            return (int) pitchDetectResult_yin.getPitch();
-        }
+        //time1 = System.currentTimeMillis();
 
+//        if(read_yin()){
+//            time = System.currentTimeMillis();
+//
+//            //Log.i("pitchDetect", "Read duration: " + (System.currentTimeMillis()-time1));
+//
+//            pitchDetectResult_yin = fy_pitchDetect.getPitch(recorder_data_yin);
+//
+//            Log.i("pitchDetect", "Processing duration: " + (System.currentTimeMillis()-time));
+//
+//            //we get a float back... can deal with that problem later. For now, truncate:
+//            return (int) pitchDetectResult_yin.getPitch();
+//        }
 
+        //read_yin();
 
 
         //start with generating a random integer.
@@ -202,7 +247,10 @@ public class pitchDetect {
         //dominantPitch = rand.nextInt(50)+1; //1 to 50
         //return dominantPitch;
 
-        return 0;
+
+
+
+        return pitch_yin;
     }
 
 }
