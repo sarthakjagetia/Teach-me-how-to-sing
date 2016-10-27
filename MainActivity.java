@@ -1,115 +1,212 @@
-package com.example.firstproject_beta;
+package com.example.mhuimie.lyrics;
 
-        import android.media.MediaPlayer;
-        import android.os.Bundle;
-        import android.support.v7.app.AppCompatActivity;
-        import android.util.Log;
-        import android.view.View;
-        import android.widget.Button;
-        import android.widget.TextView;
+import android.support.v7.app.AppCompatActivity;
+import java.io.IOException;
+import android.app.Activity;
+import android.media.MediaPlayer;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.SeekBar;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 
-public class MainActivity extends AppCompatActivity {
-    private MediaPlayer mediaPlayer = new MediaPlayer();//MediaPlayer Object
-    private TextView hint;//claim message text
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.appindexing.Thing;
+import com.google.android.gms.common.api.GoogleApiClient;
+
+public class MainActivity extends Activity {
+    /**
+     * Called when the activity is first created.
+     */
+    private LyricView lyricView;
+    private MediaPlayer mediaPlayer;
+    private Button button;
+    private SeekBar seekBar;
+    private String mp3Path;
+    private int INTERVAL = 45;//歌词每行的间隔
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    private GoogleApiClient client;
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // this.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        // getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_main);
-        //get functions for each button
-        final Button button1=(Button)findViewById(R.id.button1);//play1
-        final Button button2=(Button)findViewById(R.id.button2);//play2
-        final Button button3=(Button)findViewById(R.id.button3);//play3
-        final Button button4=(Button)findViewById(R.id.button4);//stop
-        hint=(TextView)findViewById(R.id.textView);
 
+        mp3Path = Environment.getExternalStorageDirectory().getAbsolutePath() + "/LyricSync/1.mp3";
 
-        button1.setOnClickListener(new View.OnClickListener() {
+        lyricView = (LyricView) findViewById(R.id.mylrc);
+        mediaPlayer = new MediaPlayer();
+        // this.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        ResetMusic(mp3Path);
+        SerchLrc();
+        lyricView.SetTextSize();
+
+        button = (Button) findViewById(R.id.button);
+        button.setText("播放");
+
+        seekBar = (SeekBar) findViewById(R.id.seekbarmusic);
+        seekBar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
+
             @Override
-            public void onClick(View v) {
-                play1();
-                button1.setEnabled(false);
-                button2.setEnabled(false);
-                button3.setEnabled(false);
-                button4.setEnabled(true);
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress,
+                                          boolean fromUser) {
+                // TODO Auto-generated method stub
+                if (fromUser) {
+                    mediaPlayer.seekTo(progress);
+                    lyricView.setOffsetY(220 - lyricView.SelectIndex(progress)
+                            * (lyricView.getSIZEWORD() + INTERVAL - 1));
+
+                }
             }
         });
-        button2.setOnClickListener(new View.OnClickListener() {
+
+        button.setOnClickListener(new OnClickListener() {
+
             @Override
             public void onClick(View v) {
-                play2();
-                button1.setEnabled(false);
-                button2.setEnabled(false);
-                button3.setEnabled(false);
-                button4.setEnabled(true);
+                // TODO Auto-generated method stub
+                if (mediaPlayer.isPlaying()) {
+                    button.setText("播放");
+                    mediaPlayer.pause();
+                } else {
+                    button.setText("暂停");
+                    mediaPlayer.start();
+                    lyricView.setOffsetY(220 - lyricView.SelectIndex(mediaPlayer.getCurrentPosition())
+                            * (lyricView.getSIZEWORD() + INTERVAL - 1));
+
+                }
             }
         });
-        button3.setOnClickListener(new View.OnClickListener() {
+
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
-            public void onClick(View v) {
-                play3();
-                button1.setEnabled(false);
-                button2.setEnabled(false);
-                button3.setEnabled(false);
-                button4.setEnabled(true);
+            public void onCompletion(MediaPlayer mp) {
+                ResetMusic(mp3Path);
+                lyricView.SetTextSize();
+                lyricView.setOffsetY(200);
+                mediaPlayer.start();
             }
         });
-        //对停止按钮添加事件监听器
-        button4.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mediaPlayer.stop();
-                hint.setText("Stop...");
-                button1.setEnabled(true);
-                button2.setEnabled(true);
-                button3.setEnabled(true);
-                button4.setEnabled(false);
-            }
-        });
+        seekBar.setMax(mediaPlayer.getDuration());
+        new Thread(new runable()).start();
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
-    protected void onDestroy() {
-        if(mediaPlayer.isPlaying()){
-            mediaPlayer.stop();
-        }
-        mediaPlayer.release();
-        super.onDestroy();
+
+    public void SerchLrc() {
+        String lrc = mp3Path;
+        lrc = lrc.substring(0, lrc.length() - 4).trim() + ".lrc".trim();
+        LyricView.read(lrc);
+        lyricView.SetTextSize();
+        lyricView.setOffsetY(350);
     }
 
-    //play music
-    private void play1(){
-        try{
-            mediaPlayer.reset();//reset music
-            mediaPlayer=MediaPlayer.create(this,R.raw.song1);
-            mediaPlayer.start();//play music
-            hint.setText("Music is starting");
-        } catch (Exception e) {
+    public void ResetMusic(String path) {
+
+        mediaPlayer.reset();
+        try {
+
+            mediaPlayer.setDataSource(mp3Path);
+            mediaPlayer.prepare();
+        } catch (IllegalArgumentException e) {
+            // TODO Auto-generated catch block
             e.printStackTrace();
-            Log.e("err",e.getMessage());
-        }
-        return ;
-    }
-    private void play2(){
-        try{
-            mediaPlayer.reset();//reset music
-            mediaPlayer=MediaPlayer.create(this,R.raw.song2);
-            mediaPlayer.start();//play music
-            hint.setText("Music is starting");
-        } catch (Exception e) {
+        } catch (IllegalStateException e) {
+            // TODO Auto-generated catch block
             e.printStackTrace();
-            Log.e("err",e.getMessage());
-        }
-        return ;
-    }
-    private void play3(){
-        try{
-            mediaPlayer.reset();//reset music
-            mediaPlayer=MediaPlayer.create(this,R.raw.song3);
-            mediaPlayer.start();//play music
-            hint.setText("Music is starting");
-        } catch (Exception e) {
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
             e.printStackTrace();
-            Log.e("err",e.getMessage());
         }
-        return ;
     }
 
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    public Action getIndexApiAction() {
+        Thing object = new Thing.Builder()
+                .setName("Main Page") // TODO: Define a title for the content shown.
+                // TODO: Make sure this auto-generated URL is correct.
+                .setUrl(Uri.parse("http://[ENTER-YOUR-URL-HERE]"))
+                .build();
+        return new Action.Builder(Action.TYPE_VIEW)
+                .setObject(object)
+                .setActionStatus(Action.STATUS_TYPE_COMPLETED)
+                .build();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client.connect();
+        AppIndex.AppIndexApi.start(client, getIndexApiAction());
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        AppIndex.AppIndexApi.end(client, getIndexApiAction());
+        client.disconnect();
+    }
+
+    class runable implements Runnable {
+
+        @Override
+        public void run() {
+            // TODO Auto-generated method stub
+            while (true) {
+
+                try {
+                    Thread.sleep(100);
+                    if (mediaPlayer.isPlaying()) {
+                        lyricView.setOffsetY(lyricView.getOffsetY() - lyricView.SpeedLrc());
+                        lyricView.SelectIndex(mediaPlayer.getCurrentPosition());
+                        seekBar.setProgress(mediaPlayer.getCurrentPosition());
+                        mHandler.post(mUpdateResults);
+                    }
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    Handler mHandler = new Handler();
+    Runnable mUpdateResults = new Runnable() {
+        public void run() {
+            lyricView.invalidate(); // 更新视图
+        }
+    };
 }
