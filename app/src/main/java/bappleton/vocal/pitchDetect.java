@@ -224,32 +224,6 @@ public class pitchDetect {
 
     public int getPitch() {
 
-        //time1 = System.currentTimeMillis();
-
-//        if(read_yin()){
-//            time = System.currentTimeMillis();
-//
-//            //Log.i("pitchDetect", "Read duration: " + (System.currentTimeMillis()-time1));
-//
-//            pitchDetectResult_yin = fy_pitchDetect.getPitch(recorder_data_yin);
-//
-//            Log.i("pitchDetect", "Processing duration: " + (System.currentTimeMillis()-time));
-//
-//            //we get a float back... can deal with that problem later. For now, truncate:
-//            return (int) pitchDetectResult_yin.getPitch();
-//        }
-
-        //read_yin();
-
-
-        //start with generating a random integer.
-        //Random rand = new Random();
-        //dominantPitch = rand.nextInt(50)+1; //1 to 50
-        //return dominantPitch;
-
-
-
-
         return pitch_yin;
     }
 

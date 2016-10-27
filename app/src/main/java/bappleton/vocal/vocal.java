@@ -108,14 +108,10 @@ public class vocal extends AppCompatActivity {
                         break;
                     case CASE_STOP_MAIN_UI_PITCH_DETECTION:
                         MAIN_UI_PITCH_DETECTION_RUNNING = false;
+                        MAIN_UI_PITCH_DETECTION_READY = false;
                         Message msg_stop_detection = Message.obtain();
                         msg_stop_detection.what = CASE_STOP_DETECTION;
                         pitch_det.pitchHandler.sendMessage(msg_stop_detection);
-                        break;
-                    case CASE_TEAR_DOWN_MAIN_UI_PITCH_DETECTION:
-                        //NOT CURRENTLY UTILIZED
-                        //Send a CASE_STOP_DETECTION to the pitch_det thread to destroy the pitch detection instance
-                        //Set MAIN_UI_PITCH_DETECTION_READY = false
                         break;
                     default:
                         //Let the parent class handle any messages that I don't
@@ -159,7 +155,7 @@ public class vocal extends AppCompatActivity {
 
     private void updateUIPitchView(int pitch) {
         TextView pitch_text = (TextView) findViewById(R.id.pitchView);
-        pitch_text.setText(Integer.toString(pitch));
+        pitch_text.setText(Integer.toString(pitch) + " Hz");
     }
 
 
@@ -191,6 +187,7 @@ public class vocal extends AppCompatActivity {
                             Log.i("BG_message:", Thread.currentThread().getName());
                             break;
                         case CASE_START_DETECTION:
+                            //Initialize recording object, begin recording, begin detection
                             if(pd.initialize()) {
                                 pd.start();
                                 //send back a message to tell the UI thread that we're ready
@@ -200,11 +197,12 @@ public class vocal extends AppCompatActivity {
                             }
                             break;
                         case CASE_STOP_DETECTION:
+                            //Stop recording, stop detection, release recording object
                             pd.stop();
                             pd.tearDown();
                             break;
                         case CASE_GET_PITCH:
-                            //get a pitch and send the info to the main UI message handle
+                            //Request the pitch from the pitchdetect object, send the result to the UI thread
                             Message pitch_msg = Message.obtain();
                             pitch_msg.what = CASE_RECEIVE_PITCH;
                             pitch_msg.arg1 = pd.getPitch();
