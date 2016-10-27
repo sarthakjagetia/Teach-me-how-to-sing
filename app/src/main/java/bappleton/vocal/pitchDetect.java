@@ -7,6 +7,9 @@ import android.util.Log;
 
 import java.util.Random;
 
+import be.tarsos.dsp.pitch.FastYin;
+import be.tarsos.dsp.pitch.PitchDetectionResult;
+
 /**
  * Created by Brian on 10/22/2016.
  */
@@ -18,11 +21,16 @@ public class pitchDetect {
     int bufferElements; //number of elements in the buffer
     short recorder_data[]; //array of shorts into which we'll read AR1 data. A short is a 16-bit signed integer.
 
-    //Declare fft object and signal arrays
+    //OBJECTS FOR FFT APPROACH
     FFT fft;
     double[] re; //real part of time-domain signal, gets replaced with frequency-domain info when fft is run
     double[] im; //imaginary part of time-domain signal, gets replaced with frequency-domain info when fft is run
     double[] f;  //frequency data for each point in re and im arrays
+
+    //OBJECTS FOR FAST YIN APPROACH
+    FastYin fy_pitchDetect;
+    float recorder_data_yin[];
+    PitchDetectionResult pitchDetectResult_yin;
 
     //Private booleans to indicate status of the AudioRecord object
     private boolean IS_AR1_INITIALIZED = false;
@@ -37,9 +45,12 @@ public class pitchDetect {
         int audioSource = MediaRecorder.AudioSource.DEFAULT; //MediaRecorder.AudioSource.UNPROCESSED requires API24
         int sampleRateInHz = 44100;
         int channelConfig = AudioFormat.CHANNEL_IN_MONO;
-        int audioFormat = AudioFormat.ENCODING_PCM_16BIT; //NEEDS to mesh with read() call and bytesPerElement; see documentation for other options: ENCODING_PCM_FLOAT, ENCODING_PCM_8BIT
-        bufferElements = 1024; //number of array elements to fetch from AudioRecord
-        int bytesPerElement = 2; //when reading into a short, each element consumes 2 bytes
+        //int audioFormat = AudioFormat.ENCODING_PCM_16BIT; //NEEDS to mesh with read() call and bytesPerElement; Use with reading into a short
+        int audioFormat = AudioFormat.ENCODING_PCM_FLOAT;
+        //bufferElements = 1024; //number of array elements to fetch from AudioRecord
+        bufferElements = 16384; //trying this
+        //int bytesPerElement = 2; //when reading into a short, each element consumes 2 bytes
+        int bytesPerElement = 4; //when reading into a float, each element consumes 4 bytes
         int bufferSizeInBytes = bufferElements * bytesPerElement;
 
         //Make sure that bufferSizeInByte meets the minimum buffer size (MBS) requirement
@@ -65,20 +76,28 @@ public class pitchDetect {
             IS_AR1_INITIALIZED = false;
         }
 
-        //Allocate storage for the buffer into which we'll read audio samples
-        recorder_data = new short[bufferElements];
-
-        //Prepare the FFT object
+        ///
+        //PREPARE FFT OBJECT FOR FFT APPROACH
         //Key variables: sampleRateInHz and bufferElements
         fft = new FFT(bufferElements);
         re = new double[bufferElements];
         im = new double[bufferElements];
         f  = new double[bufferElements];
-
         //calculate and store the frequency data in f
         for (int i=0; i<bufferElements; i++ ) {
             f[i] = i*sampleRateInHz/bufferElements;
         }
+        //Allocate storage for the buffer into which we'll read audio samples
+        recorder_data = new short[bufferElements];
+        //END FFT OBJECT PREP
+        ///
+
+        ///
+        //PREPARE A TARSOS YIN OBJECT FOR TESTING
+        fy_pitchDetect = new FastYin(sampleRateInHz, bufferElements);
+        recorder_data_yin = new float[bufferElements];
+        //END TARSOS YIN PREP
+        ///
 
         return IS_AR1_INITIALIZED;
     }
@@ -115,6 +134,8 @@ public class pitchDetect {
     }
 
     private boolean read() {
+        //READ FUNCTION FOR ORIGINAL APPROACH
+        //READS AUDIO DATA INTO short[] recorder_data[]
         int AR1_result;
         boolean success = false;
 
@@ -123,7 +144,34 @@ public class pitchDetect {
 
             if (AR1_result == bufferElements || AR1_result == 0) {
                 //read completed without error
-                Log.i("pitchDetect", "Read successful");
+                //Log.i("pitchDetect", "Read successful");
+                success = true;
+            } else {
+                Log.e("pitchDetect", "Read error");
+                success = false;
+            }
+        }
+        else {
+            Log.e("pitchDetect", "Can't read. Not initalized and recording.");
+            success = false;
+        }
+
+        return success;
+    }
+
+    private boolean read_yin() {
+        //READ FUNCTION FOR YIN METHOD
+        //READS AUDIO DATA INTO float[] recorder_data_yin[];
+        int AR1_result;
+        boolean success = false;
+
+        if (IS_AR1_INITIALIZED && IS_AR1_RECORDING) {
+            //Yin method wants a float. Reading into a float requires API23. So that's going to be our new minimum API?
+            AR1_result = AR1.read(recorder_data_yin, 0, bufferElements, AudioRecord.READ_BLOCKING);
+
+            if (AR1_result == bufferElements || AR1_result == 0) {
+                //read completed without error
+                //Log.i("pitchDetect", "Read successful");
                 success = true;
             } else {
                 Log.e("pitchDetect", "Read error");
@@ -140,17 +188,21 @@ public class pitchDetect {
 
     public int getPitch() {
 
-        if(read()){
-
+        if(read_yin()){
+            pitchDetectResult_yin = fy_pitchDetect.getPitch(recorder_data_yin);
+            //we get a float back... can deal with that problem later. For now, truncate:
+            return (int) pitchDetectResult_yin.getPitch();
         }
 
 
 
 
         //start with generating a random integer.
-        Random rand = new Random();
-        dominantPitch = rand.nextInt(50)+1; //1 to 50
-        return dominantPitch;
+        //Random rand = new Random();
+        //dominantPitch = rand.nextInt(50)+1; //1 to 50
+        //return dominantPitch;
+
+        return 0;
     }
 
 }

@@ -38,7 +38,7 @@ public class vocal extends AppCompatActivity {
     boolean PERMISSIONS_RECORD_AUDIO = false;
 
     //Define int constants for application behavior
-    private final int pitch_refresh_period = 1000; //Delay between UI updates for pitch, in ms
+    private final int pitch_refresh_period = 500; //Delay between UI updates for pitch, in ms
 
     //Define booleans to control application flow
     private boolean MAIN_UI_PITCH_DETECTION_RUNNING = false; //Indicates whether the UI thread and pitch detect thread should be in a request pitch/receive pitch loop
