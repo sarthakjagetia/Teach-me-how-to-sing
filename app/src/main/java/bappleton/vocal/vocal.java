@@ -77,7 +77,8 @@ public class vocal extends AppCompatActivity {
                         break;
                     case CASE_RECEIVE_PITCH:
                         //Update UI with the pitch
-                        updateUIPitchView(inputMessage.arg1);
+                        vocalPitchResult vpr = (vocalPitchResult)inputMessage.obj;
+                        updateUIPitchView(vpr);
                         if (MAIN_UI_PITCH_DETECTION_RUNNING) {
                             //If we're in a running state, send a new message to the background pitch thread to tell it to give us more pitch data
                             Message msg_get_pitch = Message.obtain();
@@ -153,9 +154,31 @@ public class vocal extends AppCompatActivity {
 
     }
 
-    private void updateUIPitchView(int pitch) {
-        TextView pitch_text = (TextView) findViewById(R.id.pitchView);
-        pitch_text.setText(Integer.toString(pitch) + " Hz");
+    private void updateUIPitchView(vocalPitchResult vpr) {
+        //TextView pitch_text = (TextView) findViewById(R.id.pitchView);
+        //pitch_text.setText(Integer.toString(pitch) + " Hz");
+
+        TextView pitchView = (TextView) findViewById(R.id.pitchView);
+        TextView freqView = (TextView) findViewById(R.id.freqView);
+        TextView clarityView = (TextView) findViewById(R.id.clarityView);
+        TextView errorView = (TextView) findViewById(R.id.errorView);
+
+        int pitchHz = vpr.getPitchHzInt();
+
+        if (pitchHz == -1) {
+            //if nothing was detected, make the interface respond nicely
+            pitchView.setText("");
+            freqView.setText("0 Hz");
+        }
+        else {
+            //something detected, let's roll
+            pitchView.setText(vpr.getNoteName());
+            freqView.setText(vpr.getPitchHzInt() + " Hz");
+        }
+
+        clarityView.setText(Math.round(vpr.getClarity()*100) + " %");
+        errorView.setText(vpr.getErrorPercent() + " %");
+
     }
 
 
@@ -205,7 +228,8 @@ public class vocal extends AppCompatActivity {
                             //Request the pitch from the pitchdetect object, send the result to the UI thread
                             Message pitch_msg = Message.obtain();
                             pitch_msg.what = CASE_RECEIVE_PITCH;
-                            pitch_msg.arg1 = pd.getPitch();
+                            //pitch_msg.arg1 = pd.getPitch();
+                            pitch_msg.obj = pd.getPitch();
                             mainHandler.sendMessage(pitch_msg);
                             break;
                         default:
