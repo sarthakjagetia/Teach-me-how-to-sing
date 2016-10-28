@@ -32,11 +32,12 @@ public class pitchDetect {
     float recorder_data_yin[];
     PitchDetectionResult pitchDetectResult_yin;
     AudioRecord.OnRecordPositionUpdateListener recordDataAvailable;
-    int pitch_yin = 0;
+    int pitch_yin = 0; //Being replaced with an object
+    vocalPitchResult vpr;
 
     //Private booleans to indicate status of the AudioRecord object
     private boolean IS_AR1_INITIALIZED = false;
-    private boolean IS_AR1_RECORDING   = false;
+    private boolean IS_AR1_RECORDING = false;
 
     //Private variables to assist processing
     int dominantPitch = 0;
@@ -44,7 +45,7 @@ public class pitchDetect {
     long time2 = 0;
     long time3 = 0;
 
-    public boolean initialize(){
+    public boolean initialize() {
 
         //Construct settings for initializing the AudioRecord instance
         int audioSource = MediaRecorder.AudioSource.DEFAULT; //MediaRecorder.AudioSource.UNPROCESSED requires API24
@@ -60,7 +61,7 @@ public class pitchDetect {
         int bufferSizeInBytes = bufferElements * bytesPerElement;
 
         //Make sure that bufferSizeInByte meets the minimum buffer size (MBS) requirement
-        int MBS = AudioRecord.getMinBufferSize(sampleRateInHz,channelConfig, audioFormat);
+        int MBS = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat);
         if (bufferSizeInBytes < MBS) {
             Log.e("pitchDetect", "Requested buffer size is insufficiently large");
         }
@@ -69,15 +70,13 @@ public class pitchDetect {
         AR1 = new AudioRecord(audioSource, sampleRateInHz, channelConfig, audioFormat, bufferSizeInBytes);
 
         //check whether the audioRecord instance was properly initialized, print result to console
-        if (AR1.getState() == AudioRecord.STATE_INITIALIZED){
+        if (AR1.getState() == AudioRecord.STATE_INITIALIZED) {
             Log.i("pitchDetect", "Successfully initialized");
             IS_AR1_INITIALIZED = true;
-        }
-        else if (AR1.getState() == AudioRecord.STATE_UNINITIALIZED) {
+        } else if (AR1.getState() == AudioRecord.STATE_UNINITIALIZED) {
             Log.e("pitchDetect", "Not successfully initialized");
             IS_AR1_INITIALIZED = false;
-        }
-        else {
+        } else {
             Log.e("pitchDetect", "Unrecognized state");
             IS_AR1_INITIALIZED = false;
         }
@@ -88,10 +87,10 @@ public class pitchDetect {
         fft = new FFT(bufferElements);
         re = new double[bufferElements];
         im = new double[bufferElements];
-        f  = new double[bufferElements];
+        f = new double[bufferElements];
         //calculate and store the frequency data in f
-        for (int i=0; i<bufferElements; i++ ) {
-            f[i] = i*sampleRateInHz/bufferElements;
+        for (int i = 0; i < bufferElements; i++) {
+            f[i] = i * sampleRateInHz / bufferElements;
         }
         //Allocate storage for the buffer into which we'll read audio samples
         recorder_data = new short[bufferElements];
@@ -102,6 +101,7 @@ public class pitchDetect {
         //PREPARE A TARSOS YIN OBJECT FOR TESTING
         fy_pitchDetect = new FastYin(sampleRateInHz, bufferElements);
         recorder_data_yin = new float[bufferElements];
+        vpr = new vocalPitchResult();
         AR1.setPositionNotificationPeriod(bufferElements);
         recordDataAvailable = new AudioRecord.OnRecordPositionUpdateListener() {
             @Override
@@ -117,7 +117,7 @@ public class pitchDetect {
                 read_yin();
                 time2 = System.currentTimeMillis();
                 processYin();
-                Log.i("pitchDetect", "New recorder data. Read: " + (time2-time1) + " ms. Process: " + (System.currentTimeMillis()-time2)+ " ms. Fetch interval: " + (time1-time3) + " ms.");
+                Log.i("pitchDetect", "New recorder data. Read: " + (time2 - time1) + " ms. Process: " + (System.currentTimeMillis() - time2) + " ms. Fetch interval: " + (time1 - time3) + " ms.");
                 time3 = System.currentTimeMillis();
             }
         };
@@ -130,15 +130,20 @@ public class pitchDetect {
 
     private void processYin() {
         pitchDetectResult_yin = fy_pitchDetect.getPitch(recorder_data_yin);
+
+        //Deprecated, mark for delete
         pitch_yin = (int) pitchDetectResult_yin.getPitch();
+
+        //Convert the YIN pitch detection result into VocalPitchDetection object, which allows access to enhanced information
+        vpr.setPitchDetectionResult(pitchDetectResult_yin);
+
     }
 
     public void start() {
         if (IS_AR1_INITIALIZED && !IS_AR1_RECORDING) {
             AR1.startRecording();
             IS_AR1_RECORDING = true;
-        }
-        else {
+        } else {
             Log.e("pitchDetect", "Cannot start recording. Either already recording or not initialized successfully");
         }
     }
@@ -147,8 +152,7 @@ public class pitchDetect {
         if (IS_AR1_RECORDING && IS_AR1_INITIALIZED) {
             AR1.stop();
             IS_AR1_RECORDING = false;
-        }
-        else {
+        } else {
             Log.e("pitchDetect", "Cannot stop recording. Not in a recording state.");
         }
     }
@@ -161,8 +165,7 @@ public class pitchDetect {
         if (AR1 != null) {
             AR1.release(); //releases native resources; set AR1 to null after this call
             AR1 = null;
-        }
-        else{
+        } else {
             Log.e("pitchDetect", "Cannot tear down. Null AudioRecord instance.");
         }
         //should we also de-allocate the recording data buffer?
@@ -186,8 +189,7 @@ public class pitchDetect {
                 Log.e("pitchDetect", "Read error");
                 success = false;
             }
-        }
-        else {
+        } else {
             Log.e("pitchDetect", "Can't read. Not initalized and recording.");
             success = false;
         }
@@ -213,8 +215,7 @@ public class pitchDetect {
                 Log.e("pitchDetect", "Read error");
                 success = false;
             }
-        }
-        else {
+        } else {
             Log.e("pitchDetect", "Can't read. Not initalized and recording.");
             success = false;
         }
@@ -222,9 +223,33 @@ public class pitchDetect {
         return success;
     }
 
-    public int getPitch() {
-
-        return pitch_yin;
+    public vocalPitchResult getPitch() {
+        return vpr;
     }
 
 }
+
+//    public String getKeyID(float hertz) {
+//
+//
+//        float A4_freq = 440; //Frequency in Hz of A4, the 49th key on the piano
+//
+////        float pitches[][] = new float[9][12]; //[row][col]. Row=octave from 0 to 8. Col = note from C to B.
+////        float n = 0; //Seqential number of the key on the piano
+////        for (int i=0; i<9; i++) {
+////            for (int j=0; j<12; j++) {
+////                n = (float) (i*12 + j);
+////                pitches[i][j] = (float) Math.pow(2, (n-49-8)/12)*A4_freq; //We start at C0, which is the -8th key relative to A4(49)
+////                Log.i("pitchDetect", "freq is " + pitches[i][j]);
+////            }
+////        }
+//
+//        double key = 0;
+//        key = Math.log10(hertz/A4_freq)*12/Math.log10(2) + 49;
+//
+//        return Double.toString(key);
+//    }
+//
+//}
+
+
