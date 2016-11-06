@@ -13,7 +13,7 @@ import be.tarsos.dsp.pitch.PitchDetectionResult;
  *          It uses the PitchDetetionResult information to calculate other information pertinent to Vocal
  *          Primarily, this includes:
  *              The piano key number closest in frequency to the detected pitch
- *              The name of the piano key .... ^
+ *              The name of the piano key closest in frequeny to the detected pitch
  *              Error between the exact pitch and the closest piano key, expressed as a percent 0-100
  *          This class is the basis for an object that includes "everything we need to know" about the detected pitch.
  *          It can be passed via Message between threads using the .obj parameter.

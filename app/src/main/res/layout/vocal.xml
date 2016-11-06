@@ -105,6 +105,11 @@
             android:textSize="20sp"
             android:onClick="toggleDetection"/>
 
+        <bappleton.vocal.vocalUI
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/vocalUIdisplay"/>
+
     </LinearLayout>
 
 </RelativeLayout>

@@ -11,6 +11,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -47,7 +49,16 @@ public class vocal extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+
+        //TESTING TESTING 11/3 - commented this out
         setContentView(R.layout.vocal);
+        ///BEGIN TEST CODE
+        //requestWindowFeature(Window.FEATURE_NO_TITLE);
+        //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        //setContentView(new vocalUI(this));
+
+        //END TESTING
 
         //Instantiate the pitch detection thread and run it
         pitch_det = new pitchThread();
@@ -183,7 +194,8 @@ public class vocal extends AppCompatActivity {
 
 
     class pitchThread extends Thread {
-        //Declare the handler for this thread
+        //WOULD IT HAVE BEEN BETTER to somehow integrate this class into the pitchDetect class??
+        // Declare the handler for this thread
         public Handler pitchHandler;
 
         //Declare a pitchDetect object, which provides most of the functionality in this class
