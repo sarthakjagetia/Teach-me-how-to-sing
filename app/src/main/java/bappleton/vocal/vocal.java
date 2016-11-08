@@ -149,16 +149,19 @@ public class vocal extends AppCompatActivity {
 //        }
         Message togglePD = Message.obtain();
         Button togglePDButton = (Button) findViewById(R.id.toggleButton);
+        vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
 
         if (MAIN_UI_PITCH_DETECTION_RUNNING){
             //if it's currently running, stop it
             togglePD.what = CASE_STOP_MAIN_UI_PITCH_DETECTION;
             togglePDButton.setText("START DETECTION");
+            VUI.endSong();
         }
         else {
             //if it's not currently running, start it
             togglePD.what = CASE_START_MAIN_UI_PITCH_DETECTION;
             togglePDButton.setText("STOP DETECTION");
+            VUI.beginSong();
         }
 
         mainHandler.sendMessage(togglePD);

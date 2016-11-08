@@ -10,16 +10,16 @@ public class vocalLyric {
     public String lyric;
 
     //Start time, seconds
-    public float startTime;
+    public float startTime_s;
 
     public vocalLyric() {
         lyric = "";
-        startTime = 0;
+        startTime_s = 0;
     }
 
     public vocalLyric(String lyric, float startTime_s) {
         this.lyric = lyric;
-        this.startTime = startTime_s;
+        this.startTime_s = startTime_s;
     }
 
 }
