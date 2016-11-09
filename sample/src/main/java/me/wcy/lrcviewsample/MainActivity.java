@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import me.wcy.lrcview.LrcView;
-
+//test android git function
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, MediaPlayer.OnCompletionListener {
     private LrcView lrcBig;
     private Button btnPlayPause;
