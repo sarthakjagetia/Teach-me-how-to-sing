@@ -1,10 +1,12 @@
 package bappleton.vocal;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.os.Process;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -13,6 +15,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import java.util.ArrayList;
+
+import static android.graphics.Bitmap.createBitmap;
 
 
 /**
@@ -32,22 +36,39 @@ public class vocalUI extends SurfaceView implements
     //Currently selected song. This contains time info, notes, and lyrics;
     private vocalSong currentSong;
 
-    //Width of notes display, in milliseconds
-    private float timeWindow_ms;
-
-    //Width of notes display, in pixels
-    //  this is NOT the same as width, because note names and padding eats up space
-    private float noteDisplayWidth_pixels;
-
-    //Relationship between pixels and time (timeWindow_s/noteDisplayWidth)
-    private float pixelsPerMillisecond;
-
     //System time at beginning of song
-    //  use System.uptimeMillis
     private long startTime_ms;
 
     //Is song playing?
     private boolean isSongPlaying;
+
+
+    /*
+    Rendering variables.
+    See configureDisplayConstants() for more information.
+    */
+    float lineSpacing;
+    float strokeWidth;
+    float bottomLineOffset;
+    float xLeftPadding;
+    float xRightPadding;
+    Paint linePaint;
+    Paint noteTextPaint;
+    Rect textBounds;
+    private float timeWindow_ms;
+    private float noteDisplayWidth_pixels;
+    private float pixelsPerMillisecond;
+    private float noteWidth;
+    private Paint noteRectPaint;
+    private String[] notes = {"C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4", "C5"};
+    private  float[] note_centers;
+    private float left_time_bound_ms;
+    private float right_time_bound_ms;
+    private float left_pixel_bound;
+    private float right_pixel_bound;
+    /*
+    End rendering variables
+     */
 
     //This gets called if doing:
     //setContentView(new vocalUI(this));
@@ -90,10 +111,6 @@ public class vocalUI extends SurfaceView implements
 
         isSongPlaying = false;
 
-        //Set up for testing
-        //Going to try calling this from the thread.
-        //AdditionalTestingInit();
-
     }
 
     //TO BE DELETED, for pre-integration testing only
@@ -110,9 +127,10 @@ public class vocalUI extends SurfaceView implements
         Log.i("vocalUI", "SurfaceChanged call. Height: " + height + " width: " + width);
         this.height = height;
         this.width  = width;
-
+        configureDisplayConstants();
 
     }
+
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
@@ -209,6 +227,7 @@ public class vocalUI extends SurfaceView implements
             isSongPlaying = false;
             Log.e("vocalUI", "Cannot begin song. Number of notes in selected song is zero.");
         }
+
     }
 
     public void endSong() {
@@ -217,80 +236,87 @@ public class vocalUI extends SurfaceView implements
         isSongPlaying = false;
     }
 
-    private void drawMusicStaff(Canvas canvas) {
-        //Purpose: draw five lines for the musical staff at the bottom of the screen
 
-        /*
-        Config settings follow. All units in pixels.
-         */
+    private void configureDisplayConstants() {
 
-        //Gap between five staff lines
-        float lineSpacing = 50;
+        //The spacing between the horizontal music note lines
+        lineSpacing = (float)Math.round(0.06*height); //50;
 
-        //Line thickness, in pixels
-        float strokeWidth = 1;
+        //Music staff linewidth. 1 gives a hairline.
+        strokeWidth = 1;
 
-        //Distance between bottom of canvas and bottom line
-        float bottomLineOffset = 20;
+        //Offset between the bottom music note line and the bottom of the canvas
+        bottomLineOffset = (float)Math.round(0.02*height); //20;
 
-        //Padding between edge of canvas and edge of screen
-        //xLeftPadding is overridden if the note names won't fit.
-        float xLeftPadding = 20;
-        float xRightPadding = 0;
+        //Offset between the left bound of the music note line and the canvas. This will be adjusted automatically if the note name won't fit.
+        xLeftPadding = (float)Math.round(0.02*height);//20;
 
-        /*
-        Draw the five lines on the canvas
-         */
+        //Offset between the right bound of the music note line and the canvas
+        xRightPadding = 0;
 
-        //configure paint
-        Paint linePaint = new Paint();
+        //Paint configuration for music note lines
+        linePaint = new Paint();
         linePaint.setColor(Color.BLACK);
         linePaint.setStrokeWidth(strokeWidth);
 
-        Paint noteTextPaint = new Paint();
+        //Paint configuration for music note names
+        //Presently these scale as a function of canvas width
+        noteTextPaint = new Paint();
         noteTextPaint.setColor(Color.GRAY);
-        noteTextPaint.setTextSize(30);
+        noteTextPaint.setTextSize((float)Math.round(0.04*width));  //(30);
 
-
-        //draw lines and note names, bottom up, from C4 (key 40) to C5 (key 52)
-
-        String[] notes = {"C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4", "C5"};
-        float[] note_centers = new float[13];
-
-        //figure out the bounds of the text, in pixels. Height will be used to adjust position, width will be used to adjust xLeftPadding if needed
-        Rect textBounds = new Rect();
+        //Adjust xLeftPadding if the longest note name doesn't fit
+        textBounds = new Rect();
         noteTextPaint.getTextBounds("C#4", 0, 3, textBounds);
         if (textBounds.width() > xLeftPadding) {
             xLeftPadding = textBounds.width() + 5;
         }
 
-        float y_position = 0;
+        //Left bound of music note display, in pixels
+        left_pixel_bound = 0 + xLeftPadding;
 
-        for (int i = 0; i < 13; i++) {
-            //Draw staff line
-            y_position = height - (bottomLineOffset + i * lineSpacing);
-            canvas.drawLine(0 + xLeftPadding, y_position, width - xRightPadding, y_position, linePaint);
-            //Record y_position of staff line
-            note_centers[i] = y_position;
-            //Draw note name to left of staff line
-            canvas.drawText(notes[i], 0, height - (bottomLineOffset + i * lineSpacing) + textBounds.height() / 2, noteTextPaint);
-        }
-        /*
-        Draw the notes
-         */
+        //Right bound of music note display, in pixels
+        right_pixel_bound = width - xRightPadding;
 
-        //Configure global constants. NEED TO PUT THESE SOMEWHERE BETTER
+        //Width, in pixels, of the music note display region
         noteDisplayWidth_pixels = width - xLeftPadding - xRightPadding;
+
+        //Width, in time, of the music note display region
         timeWindow_ms = 3000;
+
+        //Conversion factor between pixel width and time width of music note display
         pixelsPerMillisecond = noteDisplayWidth_pixels / timeWindow_ms;
 
-        //Draw a test note
-        //For now, let's make the notes 75% as wide as the spaces
-        float noteWidth = (float) 0.75 * lineSpacing;
-        //Rect testNote = new Rect(100,(int)(note_centers[3]-noteWidth/2),300,(int)(note_centers[3]+noteWidth/2));
-        Paint noteRectPaint = new Paint();
+        //Width in y-direction of the music note rectangles
+        noteWidth = (float) 0.75 * lineSpacing;
+
+        //Paint configuration for music note rectangles
+        noteRectPaint = new Paint();
         noteRectPaint.setColor(Color.BLUE);
-        //canvas.drawRect(testNote,noteRectPaint);
+
+        //Calculate array that holds the y-positions of the 13 music note lines. 0 corresponds to the bottom line.
+        note_centers = new float[13];
+        for (int i = 0; i < 13; i++) {
+            note_centers[i] = height - (bottomLineOffset + i * lineSpacing);
+        }
+    }
+
+
+    private void drawMusicStaff(Canvas canvas) {
+
+        /*
+        Draw the staff lines and the note names
+         */
+
+        for (int i = 0; i < 13; i++) {
+            canvas.drawLine(0 + xLeftPadding, note_centers[i], width - xRightPadding, note_centers[i], linePaint);
+            canvas.drawText(notes[i], 0, note_centers[i] + textBounds.height() / 2, noteTextPaint);
+        }
+
+
+        /*
+        Draw the music notes
+         */
 
         ArrayList<vocalSongNote> songNotesInWindow;
 
@@ -298,94 +324,69 @@ public class vocalUI extends SurfaceView implements
         if (isSongPlaying) {
 
             //get time bounds, in terms of location in the song, for the display
-            float left_time_bound_ms = (float) (SystemClock.uptimeMillis() - startTime_ms);
-            float right_time_bound_ms = left_time_bound_ms + timeWindow_ms;
+            left_time_bound_ms = (float) (SystemClock.uptimeMillis() - startTime_ms);
+            right_time_bound_ms = left_time_bound_ms + timeWindow_ms;
 
-            //Log.i("vocalUI", "Song start time inside draw function is: " + startTime_ms);
-            //Log.i("vocalUI", "Curent system time inside draw function is: " + SystemClock.uptimeMillis());
-            //Log.i("vocalUI", "Difference between system time and start time is: " + (SystemClock.uptimeMillis() - startTime_ms));
-            //Log.i("vocalUI", "Time bounds of notes rendering are: " + left_time_bound_ms + " ms to: " + right_time_bound_ms + "ms.");
+            //get a vector of the song notes that are within the time bounds
+            songNotesInWindow = currentSong.getNotesInWindow(left_time_bound_ms, right_time_bound_ms);
 
-            //get pixel bounds
-            float left_pixel_bound = 0 + xLeftPadding;
-            float right_pixel_bound = width - xRightPadding;
+            //Try to make a deep copy of what we got back. !!!NOTE!!! This resolved a concurrent modification exeption casued by iterating directly through songNotesInWindow
+            ArrayList<vocalSongNote> songNotesCopy = new ArrayList<vocalSongNote>(songNotesInWindow.size());
+            for (vocalSongNote item : songNotesInWindow) songNotesCopy.add(new vocalSongNote(item));
 
-            synchronized (currentSong) {
+            if (!songNotesCopy.isEmpty()) {
 
-                //get a vector of the song notes that are within the time bounds
-                songNotesInWindow = currentSong.getNotesInWindow(left_time_bound_ms, right_time_bound_ms);
+                //rectangle to draw the note. Everything here is in pixels
+                Rect thisNoteRect = new Rect();
+                int top, left, right, bottom;
 
-                //Try to make a deep copy of what we got back. !!!NOTE!!! This resolved a concurrent modification exeption casued by iterating directly through songNotesInWindow
-                ArrayList<vocalSongNote> songNotesCopy = new ArrayList<vocalSongNote>(songNotesInWindow.size());
-                for (vocalSongNote item : songNotesInWindow) songNotesCopy.add(new vocalSongNote(item));
+                for (vocalSongNote thisNote : songNotesCopy) {
+                    thisNoteRect.setEmpty();
 
-                //Log.i("vocalUI", "Number of notes in rendering window are: " + songNotesInWindow.size());
-                Log.i("vocalUI", "Rendering " + songNotesCopy.size() + " notes between " + left_time_bound_ms + " ms and " + right_time_bound_ms + " ms.");
-
-
-                if (!songNotesCopy.isEmpty()) {
-
-                    //iterate through this vector
-                    //Iterator<vocalSongNote> itr = songNotesInWindow.iterator();
-                    //vocalSongNote thisNote;
-
-                    //rectangle to draw the note. Everything here is in pixels
-                    Rect thisNoteRect = new Rect();
-                    int top, left, right, bottom;
-
-                    for (vocalSongNote thisNote : songNotesCopy) {
-                        //thisNote = itr.next();
-                        thisNoteRect.setEmpty();
-
-                        //Scenario 1: Left side of this note is cut off by the left bound
-                        if (thisNote.startTime_s * 1000 < left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms > left_time_bound_ms) {
-                            //render a left-truncated note
-                            left = (int) left_pixel_bound;
-                            right = left + (int) ((thisNote.startTime_s * 1000 + thisNote.duration_ms - left_time_bound_ms) * pixelsPerMillisecond);
-                            top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
-                            bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
-
-                        }
-
-                        //Scenario 2: Note is encapsulated entirely inside the left and right bounds
-                        else if (thisNote.startTime_s * 1000 > left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms < right_time_bound_ms) {
-                            //render the note normally
-                            left = (int) (left_pixel_bound + (thisNote.startTime_s * 1000 - left_time_bound_ms) * pixelsPerMillisecond);
-                            right = (int) (right_pixel_bound - ((right_time_bound_ms - (thisNote.startTime_s * 1000 + thisNote.duration_ms)) * pixelsPerMillisecond));
-                            top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
-                            bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
-                        }
-
-                        //Scenario 3: Right side of this note is cut off by the right bound
-                        else if (thisNote.startTime_s * 1000 < right_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms > right_time_bound_ms) {
-                            //render a right-truncated note
-                            right = (int) right_pixel_bound;
-                            left = right - (int) ((right_time_bound_ms - thisNote.startTime_s * 1000) * pixelsPerMillisecond);
-                            top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
-                            bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
-                        }
-
-                        //Uh oh
-                        else {
-                            Log.e("vocalUI", "Attempted to plot out-of-bounds note");
-                            break;
-                        }
-
-                        //Clear the coordinates of the note
-                        thisNoteRect.set(left, top, right, bottom);
-                        canvas.drawRect(thisNoteRect, noteRectPaint);
-
-                        //Clear the song note vector
-                        songNotesInWindow.clear();
-
+                    //Scenario 1: Left side of this note is cut off by the left bound
+                    if (thisNote.startTime_s * 1000 < left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms > left_time_bound_ms) {
+                        //render a left-truncated note
+                        left = (int) left_pixel_bound;
+                        right = left + (int) ((thisNote.startTime_s * 1000 + thisNote.duration_ms - left_time_bound_ms) * pixelsPerMillisecond);
+                        top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
+                        bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
 
                     }
 
-                }
+                    //Scenario 2: Note is encapsulated entirely inside the left and right bounds
+                    else if (thisNote.startTime_s * 1000 > left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms < right_time_bound_ms) {
+                        //render the note normally
+                        left = (int) (left_pixel_bound + (thisNote.startTime_s * 1000 - left_time_bound_ms) * pixelsPerMillisecond);
+                        right = (int) (right_pixel_bound - ((right_time_bound_ms - (thisNote.startTime_s * 1000 + thisNote.duration_ms)) * pixelsPerMillisecond));
+                        top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
+                        bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
+                    }
 
+                    //Scenario 3: Right side of this note is cut off by the right bound
+                    else if (thisNote.startTime_s * 1000 < right_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms > right_time_bound_ms) {
+                        //render a right-truncated note
+                        right = (int) right_pixel_bound;
+                        left = right - (int) ((right_time_bound_ms - thisNote.startTime_s * 1000) * pixelsPerMillisecond);
+                        top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
+                        bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
+                    }
+
+                    //Uh oh
+                    else {
+                        Log.e("vocalUI", "Attempted to plot out-of-bounds note");
+                        break;
+                    }
+
+                    //Clear the coordinates of the note
+                    thisNoteRect.set(left, top, right, bottom);
+                    canvas.drawRect(thisNoteRect, noteRectPaint);
+
+                    //Clear the song note vector
+                    songNotesInWindow.clear();
+
+                }
             }
         }
-
     }
 
     public class MainThread extends Thread {
@@ -408,32 +409,87 @@ public class vocalUI extends SurfaceView implements
         public void run() {
 
             Canvas canvas;
-            Paint paint = new Paint();
+            //Paint paint = new Paint();
             //Log.i("vocalUI", "can you hear me??");
             Log.i("vocalUI", "Starting display loop");
-            float i = 0;
+
+            int frameCount = 0;
+            float frameRate;
+            float framePeriod;
+            long renderStartTime = SystemClock.uptimeMillis();
+            long renderTimer = 0;
+
 
             AdditionalTestingInit();
 
-            while(running) {
+            android.os.Process.setThreadPriority(android.os.Process.myTid(), Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
-                //Log.i("vocalUI", "entered running loop4");
-                i++;
-                //Update state and render to screen
+
+            while (running) {
+
+
+
+
+
+                //Get a canvas from the surface holder
+                //~50 ms to complete on Nexus 5 API 24 1080x1920 screen
                 canvas = this.surfaceHolder.lockCanvas();
+
+
+
+                //TESTING: Try making a canvas manually
+                //Bitmap bmap = createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                //canvas = new Canvas(bmap);
+
+                //Log.i("vocalUI", "Checkpoint 1b: " + (SystemClock.uptimeMillis() - renderPeriod));
+
                 //do something to the canvas
-                paint.reset();
-                paint.setColor(Color.BLACK);
-                paint.setTextSize(50);
+                //paint.reset();
+
+                //Log.i("vocalUI", "Checkpoint 1c: " + (SystemClock.uptimeMillis() - renderPeriod));
+
+                //paint.setColor(Color.BLACK);
+                //paint.setTextSize(50);
+
+                //Log.i("vocalUI", "Checkpoint 1d: " + (SystemClock.uptimeMillis() - renderPeriod));
+
                 canvas.drawColor(Color.WHITE);
                 //canvas.drawText("Holy moly", 100, 100+i*5, paint);
+
+                //Log.i("vocalUI", "Checkpoint 2: " + (SystemClock.uptimeMillis() - renderPeriod));
+
                 VUI.drawMusicStaff(canvas);
 
+                //Log.i("vocalUI", "Checkpoint 3: " + (SystemClock.uptimeMillis() - renderPeriod));
+
                 //display
+                //~50 ms to complete on Nexus 5 API 24 1080x1920 screen
                 this.surfaceHolder.unlockCanvasAndPost(canvas);
+                frameCount++;
+
+                //TESTING: try to draw canvas manually
+                //this.VUI.draw(canvas);
+
+               // Log.i("vocalUI", "Rendered in " + (SystemClock.uptimeMillis() - renderPeriod) + " ms.");
+               // renderPeriod = SystemClock.uptimeMillis();
+
+                //Every ten seconds, check the framerate
+                renderTimer = SystemClock.uptimeMillis()-renderStartTime;
+                if(renderTimer > 10000) {
+                    framePeriod = ((float)renderTimer) / ((float)(frameCount));
+                    frameRate = 1000/framePeriod;
+                    //If we're geting less than 25 fps, print a warning.
+                    if(Math.round(frameRate) < 25) {
+                        Log.w("vocalUI", "Frame rate is less than 25 fps target: " + Math.round(frameRate) + " fps (" + Math.round(framePeriod) + " ms/frame)");
+                        Log.w("vocalUI", "Hardware acceleration enabled: " + canvas.isHardwareAccelerated());
+                    }
+                    frameCount = 0;
+                    renderStartTime = SystemClock.uptimeMillis();
+                }
+
 
 //                try {
-//                    thread.sleep(30);
+//                    thread.sleep(25);
 //                } catch (InterruptedException e) {
 //                    e.printStackTrace();
 //                }
@@ -442,7 +498,7 @@ public class vocalUI extends SurfaceView implements
 
                 //Log.i("vocalUI", "loop iteration");
 
-           }
+            }
 
         }
     }

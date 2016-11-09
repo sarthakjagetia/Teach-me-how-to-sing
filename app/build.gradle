@@ -1,6 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        VocalKS {
+            keyAlias 'VocalKS'
+            storeFile file('C:/Users/Brian/Documents/_ECE Fall 2016/EC601 Product Design/Keystores/VocalKS.jks')
+            keyPassword 'brianabc678'
+            storePassword 'brianabc678'
+        }
+    }
     compileSdkVersion 24
     buildToolsVersion "24.0.2"
     defaultConfig {
@@ -15,6 +23,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.VocalKS
         }
     }
 }

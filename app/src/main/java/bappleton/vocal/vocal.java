@@ -50,7 +50,6 @@ public class vocal extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-
         //TESTING TESTING 11/3 - commented this out
         setContentView(R.layout.vocal);
         ///BEGIN TEST CODE
@@ -134,6 +133,7 @@ public class vocal extends AppCompatActivity {
 
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
+
     }
 
 
