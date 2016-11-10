@@ -56,12 +56,16 @@ public class vocalUI extends SurfaceView implements
     Paint noteTextPaint;
     Rect textBounds;
     private float timeWindow_ms;
+    private float timeWindowRenderPastNow;
     private float noteDisplayWidth_pixels;
     private float pixelsPerMillisecond;
+    private float xPosNow;
     private float noteWidth;
     private Paint noteRectPaint;
     private String[] notes = {"C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4", "C5"};
     private  float[] note_centers;
+    private float yPosNowBottom;
+    private float yPosNowTop;
     private float left_time_bound_ms;
     private float right_time_bound_ms;
     private float left_pixel_bound;
@@ -177,7 +181,7 @@ public class vocalUI extends SurfaceView implements
 
     public void setSong(vocalSong song) {
         this.currentSong = song;
-        Log.i("vocalUI", "New song selected. Song length is " + this.currentSong.getSongLength_s() + " seconds");
+        Log.i("vocalUI", "New song selected. Song length is " + this.currentSong.getSongLength_s() + " seconds. Contains " + this.currentSong.getNumNotes() + " music notes and " + this.currentSong.getNumLyrics() + " lyrics.");
     }
 
     private vocalSong demoSong1() {
@@ -198,14 +202,14 @@ public class vocalUI extends SurfaceView implements
 
         ArrayList<vocalLyric> lyrics = new ArrayList<vocalLyric>(0);
 
-        lyrics.add(new vocalLyric("Do", 0));
-        lyrics.add(new vocalLyric("Re", 1));
-        lyrics.add(new vocalLyric("Me", 2));
-        lyrics.add(new vocalLyric("Fa", 3));
-        lyrics.add(new vocalLyric("So", 4));
-        lyrics.add(new vocalLyric("La", 5));
-        lyrics.add(new vocalLyric("Ti", 6));
-        lyrics.add(new vocalLyric("Do", 7));
+        lyrics.add(new vocalLyric("Do", 3));
+        lyrics.add(new vocalLyric("Re", 5));
+        lyrics.add(new vocalLyric("Me", 7));
+        lyrics.add(new vocalLyric("Fa", 9));
+        lyrics.add(new vocalLyric("So", 11));
+        lyrics.add(new vocalLyric("La", 13));
+        lyrics.add(new vocalLyric("Ti", 15));
+        lyrics.add(new vocalLyric("Do", 17));
 
         Log.i("vocalUI", "Lyrics vector contains: " + lyrics.size() + " elements.");
 
@@ -246,7 +250,7 @@ public class vocalUI extends SurfaceView implements
         strokeWidth = 1;
 
         //Offset between the bottom music note line and the bottom of the canvas
-        bottomLineOffset = (float)Math.round(0.02*height); //20;
+        bottomLineOffset = (float)Math.round(0.08*height); //20;
 
         //Offset between the left bound of the music note line and the canvas. This will be adjusted automatically if the note name won't fit.
         xLeftPadding = (float)Math.round(0.02*height);//20;
@@ -284,8 +288,15 @@ public class vocalUI extends SurfaceView implements
         //Width, in time, of the music note display region
         timeWindow_ms = 3000;
 
+        //Some notes will be rendered in the past, and indicated with a vertical line. How far into the past?
+        //This will eat up a chunk of the time allocated to timeWindow_ms.
+        timeWindowRenderPastNow = 300;
+
         //Conversion factor between pixel width and time width of music note display
         pixelsPerMillisecond = noteDisplayWidth_pixels / timeWindow_ms;
+
+        //X-position of the vertical line indicating "now"
+        xPosNow = left_pixel_bound + timeWindowRenderPastNow*pixelsPerMillisecond;
 
         //Width in y-direction of the music note rectangles
         noteWidth = (float) 0.75 * lineSpacing;
@@ -299,19 +310,27 @@ public class vocalUI extends SurfaceView implements
         for (int i = 0; i < 13; i++) {
             note_centers[i] = height - (bottomLineOffset + i * lineSpacing);
         }
+
+        //Set the y-limits of the vertical line for "Now"
+        yPosNowBottom = note_centers[0];
+        yPosNowTop = note_centers[12];
     }
 
 
     private void drawMusicStaff(Canvas canvas) {
 
         /*
-        Draw the staff lines and the note names
+        Draw the staff lines, note names, and a vertical line indicating "now"
          */
 
+        //13 staff lines and note names
         for (int i = 0; i < 13; i++) {
             canvas.drawLine(0 + xLeftPadding, note_centers[i], width - xRightPadding, note_centers[i], linePaint);
             canvas.drawText(notes[i], 0, note_centers[i] + textBounds.height() / 2, noteTextPaint);
         }
+
+        //vertical line to indicate current position in song
+        canvas.drawLine(xPosNow, yPosNowBottom, xPosNow, yPosNowTop, linePaint);
 
 
         /*
@@ -324,7 +343,7 @@ public class vocalUI extends SurfaceView implements
         if (isSongPlaying) {
 
             //get time bounds, in terms of location in the song, for the display
-            left_time_bound_ms = (float) (SystemClock.uptimeMillis() - startTime_ms);
+            left_time_bound_ms = (float) (SystemClock.uptimeMillis() - startTime_ms - timeWindowRenderPastNow);
             right_time_bound_ms = left_time_bound_ms + timeWindow_ms;
 
             //get a vector of the song notes that are within the time bounds
@@ -387,6 +406,44 @@ public class vocalUI extends SurfaceView implements
                 }
             }
         }
+
+        /*
+        Draw the lyrics
+            How to go about this? Make lyrics simply scroll horizontially according to their start times?
+         */
+
+        ArrayList<vocalLyric> songLyricsInWindow;
+
+        if(isSongPlaying) {
+
+            songLyricsInWindow = currentSong.getLyricsinWindow(left_time_bound_ms, right_time_bound_ms);
+
+            //Make a deep copy to avoid a potential concurrent modification issue. Definitely don't want to go down that road again.
+            ArrayList<vocalLyric> songLyricsCopy = new ArrayList<vocalLyric>(songLyricsInWindow.size());
+            for (vocalLyric vl : songLyricsInWindow) songLyricsCopy.add(new vocalLyric(vl));
+
+            //If we have something, let's draw it
+            if (!songLyricsCopy.isEmpty()) {
+                Paint lyricsPaint = new Paint();
+                lyricsPaint.setColor(Color.BLACK);
+                lyricsPaint.setTextSize(30);
+
+                for (vocalLyric thisLyric : songLyricsCopy) {
+
+                    float textYposition = height;
+
+
+                    //Set x position simply based on the left time bound
+                    float textXposition = (thisLyric.startTime_s*1000-left_time_bound_ms)*pixelsPerMillisecond + left_pixel_bound;
+
+                    canvas.drawText(thisLyric.lyric, textXposition, textYposition, lyricsPaint);
+
+                }
+            }
+
+
+        }
+
     }
 
     public class MainThread extends Thread {

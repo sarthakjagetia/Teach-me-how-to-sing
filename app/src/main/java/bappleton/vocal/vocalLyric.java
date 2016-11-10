@@ -22,4 +22,10 @@ public class vocalLyric {
         this.startTime_s = startTime_s;
     }
 
+    //Constructor to assist deep copying
+    public vocalLyric (vocalLyric makeCopy) {
+        this.lyric = makeCopy.lyric;
+        this.startTime_s = makeCopy.startTime_s;
+    }
+
 }

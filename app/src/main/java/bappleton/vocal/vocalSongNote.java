@@ -27,7 +27,7 @@ public class vocalSongNote {
         this.duration_ms = duration_ms;
     }
 
-    //Scratch constructor to try to help copying
+    //Constructor to assist deep copying
     public vocalSongNote(vocalSongNote makeCopy) {
         this.pianoKeyID = makeCopy.pianoKeyID;
         this.startTime_s = makeCopy.startTime_s;

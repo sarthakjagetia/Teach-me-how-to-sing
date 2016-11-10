@@ -2,6 +2,7 @@ package bappleton.vocal;
 
 import android.util.Log;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -62,6 +63,29 @@ public class vocalSong {
 
         return selectedNotes;
     }
+
+    //Note: this function requires, for efficiency, that notes are stored in sequential order
+
+    public ArrayList<vocalLyric> getLyricsinWindow (float startTime_ms, float endTime_ms) {
+        //Let's attack this similary to how we got the music notes in the window, except, the lyrics don't have a duration
+
+        //Declare arrayList that we'll return
+        ArrayList<vocalLyric> selectedLyrics = new ArrayList<vocalLyric>();
+
+        //Loop through lyrics and pick out the ones between the start and end times
+        for (vocalLyric nextLyric : lyrics) {
+            if(nextLyric.startTime_s*1000 > startTime_ms && nextLyric.startTime_s*1000 < endTime_ms) {
+                selectedLyrics.add(nextLyric);
+            }
+            else if (nextLyric.startTime_s*1000 > endTime_ms) {
+                //If the next lyric in the lyrics array is beyond the end time, stop searching. Requires sorted ArrayList.
+                break;
+            }
+        }
+
+        return selectedLyrics;
+    }
+
 
     public float getSongLength_s() {
 
