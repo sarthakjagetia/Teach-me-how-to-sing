@@ -20,6 +20,7 @@ public class vocal extends AppCompatActivity {
 
     private Handler mainHandler;
     pitchThread pitch_det;
+    pitchDetectThread thread_test;
 
     //Define int constants for message handling
     private final int CASE_BRIAN_WAS_HERE           = 1000;
@@ -34,6 +35,10 @@ public class vocal extends AppCompatActivity {
     private final int CASE_STOP_MAIN_UI_PITCH_DETECTION  = 1009;
     private final int CASE_READY_FOR_PITCH_REQUEST  = 1010;
     private final int CASE_TEAR_DOWN_MAIN_UI_PITCH_DETECTION = 1011;
+
+
+    private final int SIGNAL_DETECTION_RUNNING      = 2004;
+    private final int SIGNAL_DETECTION_STOPPED      = 2005;
 
     //Define int constants for permission handling
     public final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2000;
@@ -62,9 +67,6 @@ public class vocal extends AppCompatActivity {
         //Instantiate the pitch detection thread and run it
         pitch_det = new pitchThread();
         pitch_det.start();
-
-        //Initialize a message to use for communicatio with the pitch detection thread
-        //Message msg_get_pitch = Message.obtain();
 
         //Define a message handler for the main UI thread
         mainHandler = new Handler(Looper.getMainLooper()) {
@@ -124,12 +126,23 @@ public class vocal extends AppCompatActivity {
                         msg_stop_detection.what = CASE_STOP_DETECTION;
                         pitch_det.pitchHandler.sendMessage(msg_stop_detection);
                         break;
+                    case SIGNAL_DETECTION_RUNNING:
+                        Log.i("mainHandler", "Holy shit.");
+                        MAIN_UI_PITCH_DETECTION_RUNNING = true;
+                        break;
+                    case SIGNAL_DETECTION_STOPPED:
+                        MAIN_UI_PITCH_DETECTION_RUNNING = false;
+                        break;
                     default:
                         //Let the parent class handle any messages that I don't
                         super.handleMessage(inputMessage);
                 }
             }
         };
+
+        //See what happens when we try to run the self-contained pitch detection thread:
+        thread_test = new pitchDetectThread(mainHandler);
+        thread_test.start();
 
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
@@ -147,6 +160,16 @@ public class vocal extends AppCompatActivity {
 //        else {
 //            Log.e("PitchHandler", "Null");
 //        }
+
+        if(!MAIN_UI_PITCH_DETECTION_RUNNING) {
+            thread_test.startPitchDetection();
+        }
+        else {
+            thread_test.stopPitchDetection();
+        }
+
+        /*
+        //OLD CODE. COMMENTED OUT FOR pitchDetectThread testing
         Message togglePD = Message.obtain();
         Button togglePDButton = (Button) findViewById(R.id.toggleButton);
         vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
@@ -165,6 +188,7 @@ public class vocal extends AppCompatActivity {
         }
 
         mainHandler.sendMessage(togglePD);
+        */
 
     }
 
