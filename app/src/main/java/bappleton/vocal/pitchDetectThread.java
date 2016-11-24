@@ -28,6 +28,9 @@ public class pitchDetectThread extends Thread {
     private final int CASE_STOP_DETECTION           = 1003;
     private final int SIGNAL_DETECTION_RUNNING      = 2004;
     private final int SIGNAL_DETECTION_STOPPED      = 2005;
+    private final int SIGNAL_PITCH_REQUEST          = 2006;
+
+
     private final String TAG = "pitchDetectThread";
 
 
@@ -54,6 +57,7 @@ public class pitchDetectThread extends Thread {
                         Log.i(TAG, Thread.currentThread().getName());
                         break;
                     case CASE_START_DETECTION:
+                        //Initialize AudioRecord object, begin recording, begin processing data with YIN
                         if (!IS_AR1_RECORDING) {
                             if (initialize()) {
                                 AR1.startRecording();
@@ -74,6 +78,7 @@ public class pitchDetectThread extends Thread {
                         }
                         break;
                     case CASE_STOP_DETECTION:
+                        //Stop recording and destory AR1 object
                         if (IS_AR1_RECORDING) {
                             AR1.stop();
                             if (AR1 != null) {
@@ -87,10 +92,18 @@ public class pitchDetectThread extends Thread {
                         }
                         //Update internal recording flag
                         IS_AR1_RECORDING = false;
+                        IS_AR1_INITIALIZED = false;
                         //Send a message to the parent thread to tell it we've stopped detection
                         Message recordingStopped = Message.obtain();
                         recordingStopped.what = SIGNAL_DETECTION_STOPPED;
                         parentHandler.sendMessage(recordingStopped);
+                        break;
+                    case SIGNAL_PITCH_REQUEST:
+                        //Send pitch data to parent handler
+                        Message pitchDataMsg = Message.obtain();
+                        pitchDataMsg.what = SIGNAL_PITCH_REQUEST;
+                        pitchDataMsg.obj  = vpr; //Attach vocalPitchResult object to the message
+                        parentHandler.sendMessage(pitchDataMsg);
                         break;
                     default:
                         super.handleMessage(msg);
@@ -114,11 +127,11 @@ public class pitchDetectThread extends Thread {
     vocalPitchResult vpr;
 
     //Private booleans to indicate status of the AudioRecord object
-    private boolean IS_AR1_INITIALIZED = false;
-    private boolean IS_AR1_RECORDING = false;
+    private boolean IS_AR1_INITIALIZED = false; //Not essential to functionality, but status should be accurate.
+    private boolean IS_AR1_RECORDING = false;  //Integral to functionality
 
     //Private variables to assist processing
-    int dominantPitch = 0;
+    //int dominantPitch = 0;
     long time1 = 0;
     long time2 = 0;
     long time3 = 0;
@@ -248,13 +261,17 @@ public class pitchDetectThread extends Thread {
         return success;
     }
 
-    public vocalPitchResult getPitch() {
-        //PUBLIC FUNCTION NEEDS TO BE UPDATED
+    public void getPitchViaMessage() {
+        Message pitchRequestMessage = Message.obtain();
+        pitchRequestMessage.what = SIGNAL_PITCH_REQUEST;
+        pitchDetectHandler.sendMessage(pitchRequestMessage);
+    }
+
+    public vocalPitchResult getPitchDirecty() {
         return vpr;
     }
 
     public void printThreadName() {
-        //Log.i("pitchDetectThread", Thread.currentThread().getName() );
         Message msg = Message.obtain();
         msg.what = CASE_THREAD_IDENTIFY_YOURSELF;
 

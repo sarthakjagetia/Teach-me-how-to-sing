@@ -141,8 +141,8 @@ public class vocal extends AppCompatActivity {
         };
 
         //See what happens when we try to run the self-contained pitch detection thread:
-        thread_test = new pitchDetectThread(mainHandler);
-        thread_test.start();
+        //thread_test = new pitchDetectThread(mainHandler);
+        //thread_test.start();
 
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
@@ -161,11 +161,19 @@ public class vocal extends AppCompatActivity {
 //            Log.e("PitchHandler", "Null");
 //        }
 
+        vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
+
         if(!MAIN_UI_PITCH_DETECTION_RUNNING) {
-            thread_test.startPitchDetection();
+            //thread_test.startPitchDetection();
+            VUI.beginRendering();
+            VUI.beginSong();
+            MAIN_UI_PITCH_DETECTION_RUNNING = true;
         }
         else {
-            thread_test.stopPitchDetection();
+            //thread_test.stopPitchDetection();
+            VUI.stopRendering();
+            VUI.endSong();
+            MAIN_UI_PITCH_DETECTION_RUNNING = false;
         }
 
         /*

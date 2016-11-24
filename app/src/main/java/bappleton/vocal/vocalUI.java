@@ -6,6 +6,9 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.os.Process;
 import android.os.SystemClock;
 import android.util.AttributeSet;
@@ -42,6 +45,7 @@ public class vocalUI extends SurfaceView implements
     //Is song playing?
     private boolean isSongPlaying;
 
+    private final String TAG = "vocalUI";
 
     /*
     Rendering variables.
@@ -73,6 +77,10 @@ public class vocalUI extends SurfaceView implements
     /*
     End rendering variables
      */
+
+    private final int CASE_START_RENDERING  = 3000;
+    private final int CASE_RENDER_FRAME     = 3001;
+    private final int CASE_STOP_RENDERING   = 3002;
 
     //This gets called if doing:
     //setContentView(new vocalUI(this));
@@ -139,7 +147,8 @@ public class vocalUI extends SurfaceView implements
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         //start our thread
-        thread.setRunning(true);
+        //BRIAN CHANGED THIS 11/23. THIS IS WHERE WE ORIGINALLY SET THE THREAD RUNNING.
+        //thread.setRunning(true);
         thread.start();
     }
 
@@ -238,6 +247,18 @@ public class vocalUI extends SurfaceView implements
         //thread.setRunning(false);
         startTime_ms = 0;
         isSongPlaying = false;
+    }
+
+    public void beginRendering() {
+        Message beginRenderMsg = Message.obtain();
+        beginRenderMsg.what = CASE_START_RENDERING;
+        thread.vocalUIHandler.sendMessage(beginRenderMsg);
+    }
+
+    public void stopRendering() {
+        Message stopRenderMsg = Message.obtain();
+        stopRenderMsg.what = CASE_STOP_RENDERING;
+        thread.vocalUIHandler.sendMessage(stopRenderMsg);
     }
 
 
@@ -447,9 +468,23 @@ public class vocalUI extends SurfaceView implements
     }
 
     public class MainThread extends Thread {
+        //Handler for this thread
+        public Handler vocalUIHandler;
+
         private boolean running;
         private SurfaceHolder surfaceHolder;
         private vocalUI VUI;
+        private Canvas UIcanvas;
+
+        //Pitch detection object
+        pitchDetectThread pitchThread;
+
+        //Variables for frame rate tracking
+        private int frameCount;
+        private float frameRate;
+        private float framePeriod;
+        private long renderStartTime;
+        private long renderTimer;
 
         public MainThread(SurfaceHolder surfaceHolder, vocalUI VUI) {
             super();
@@ -462,19 +497,34 @@ public class vocalUI extends SurfaceView implements
             this.running = running;
         }
 
+        private void checkFramerate() {
+            frameCount++;
+            //Every ten seconds, check the framerate
+            renderTimer = SystemClock.uptimeMillis()-renderStartTime;
+            if(renderTimer > 10000) {
+                framePeriod = ((float)renderTimer) / ((float)(frameCount));
+                frameRate = 1000/framePeriod;
+                //If we're geting less than 25 fps, print a warning.
+                if(Math.round(frameRate) < 25) {
+                    Log.w("vocalUI", "Frame rate is less than 25 fps target: " + Math.round(frameRate) + " fps (" + Math.round(framePeriod) + " ms/frame)");
+                    Log.w("vocalUI", "Hardware acceleration enabled: " + UIcanvas.isHardwareAccelerated());
+                }
+                frameCount = 0;
+                renderStartTime = SystemClock.uptimeMillis();
+            }
+        }
+
         @Override
         public void run() {
 
-            Canvas canvas;
+            //Canvas canvas;
             //Paint paint = new Paint();
             //Log.i("vocalUI", "can you hear me??");
             Log.i("vocalUI", "Starting display loop");
 
-            int frameCount = 0;
-            float frameRate;
-            float framePeriod;
-            long renderStartTime = SystemClock.uptimeMillis();
-            long renderTimer = 0;
+            //frameCount = 0;
+            //renderStartTime = SystemClock.uptimeMillis();
+            //renderTimer = 0;
 
 
             AdditionalTestingInit();
@@ -482,6 +532,7 @@ public class vocalUI extends SurfaceView implements
             android.os.Process.setThreadPriority(android.os.Process.myTid(), Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
 
+            /*
             while (running) {
 
 
@@ -491,44 +542,14 @@ public class vocalUI extends SurfaceView implements
                 //Get a canvas from the surface holder
                 //~50 ms to complete on Nexus 5 API 24 1080x1920 screen
                 canvas = this.surfaceHolder.lockCanvas();
-
-
-
-                //TESTING: Try making a canvas manually
-                //Bitmap bmap = createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                //canvas = new Canvas(bmap);
-
-                //Log.i("vocalUI", "Checkpoint 1b: " + (SystemClock.uptimeMillis() - renderPeriod));
-
-                //do something to the canvas
-                //paint.reset();
-
-                //Log.i("vocalUI", "Checkpoint 1c: " + (SystemClock.uptimeMillis() - renderPeriod));
-
-                //paint.setColor(Color.BLACK);
-                //paint.setTextSize(50);
-
-                //Log.i("vocalUI", "Checkpoint 1d: " + (SystemClock.uptimeMillis() - renderPeriod));
-
                 canvas.drawColor(Color.WHITE);
-                //canvas.drawText("Holy moly", 100, 100+i*5, paint);
-
-                //Log.i("vocalUI", "Checkpoint 2: " + (SystemClock.uptimeMillis() - renderPeriod));
-
                 VUI.drawMusicStaff(canvas);
-
-                //Log.i("vocalUI", "Checkpoint 3: " + (SystemClock.uptimeMillis() - renderPeriod));
 
                 //display
                 //~50 ms to complete on Nexus 5 API 24 1080x1920 screen
                 this.surfaceHolder.unlockCanvasAndPost(canvas);
                 frameCount++;
 
-                //TESTING: try to draw canvas manually
-                //this.VUI.draw(canvas);
-
-               // Log.i("vocalUI", "Rendered in " + (SystemClock.uptimeMillis() - renderPeriod) + " ms.");
-               // renderPeriod = SystemClock.uptimeMillis();
 
                 //Every ten seconds, check the framerate
                 renderTimer = SystemClock.uptimeMillis()-renderStartTime;
@@ -545,17 +566,66 @@ public class vocalUI extends SurfaceView implements
                 }
 
 
-//                try {
-//                    thread.sleep(25);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-
-                //Log.i("vocalUI", "Height is: " + VUI.getCanvasHeight());
-
-                //Log.i("vocalUI", "loop iteration");
-
             }
+            */
+
+            Looper.prepare();
+            //Define the message handler for this thread
+            vocalUIHandler = new Handler() {
+                @Override
+                public void handleMessage(Message msg) {
+                    switch (msg.what) {
+                        case CASE_START_RENDERING:
+                            //Set running flag to true
+                            running = true;
+                            //Set up framerate monitoring variables
+                            frameCount = 0;
+                            renderStartTime = SystemClock.uptimeMillis();
+                            renderTimer = 0;
+                            //Start pitch detection
+                            pitchThread.startPitchDetection();
+                            //Send a message to myself to render the first frame
+                            Message startRenderingMsg = Message.obtain();
+                            startRenderingMsg.what = CASE_RENDER_FRAME;
+                            vocalUIHandler.sendMessage(startRenderingMsg);
+                            Log.i(TAG, "Rendering started.");
+                            break;
+                        case CASE_RENDER_FRAME:
+                            //Draw and post a canvas if rendering is running
+                            if(running) {
+                                //Render a frame
+                                UIcanvas = surfaceHolder.lockCanvas();
+                                UIcanvas.drawColor(Color.WHITE);
+                                VUI.drawMusicStaff(UIcanvas);
+                                surfaceHolder.unlockCanvasAndPost(UIcanvas);
+                                //Check the framerate
+                                checkFramerate();
+                                //Tell myself to do it again.
+                                //This does not try to stabilize the framerate; it'll
+                                //deliver as fast a framerate as the device can render.
+                                //Not ideal, but OK for now. Future improvement.
+                                Message renderAnotherMsg = Message.obtain();
+                                renderAnotherMsg.what = CASE_RENDER_FRAME;
+                                vocalUIHandler.sendMessage(renderAnotherMsg);
+                            }
+                            break;
+                        case CASE_STOP_RENDERING:
+                            running = false;
+                            //Stop pitch detection
+                            pitchThread.stopPitchDetection();
+                            Log.i(TAG, "Rendering stopped.");
+                            break;
+                        default:
+                            super.handleMessage(msg);
+                    }
+                }
+            };
+
+            //Start the pitch detection thread, give it the handler we just made
+            pitchThread = new pitchDetectThread(vocalUIHandler);
+            pitchThread.start();
+
+            Looper.loop();
 
         }
     }
