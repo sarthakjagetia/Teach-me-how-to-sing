@@ -74,6 +74,8 @@ public class vocalUI extends SurfaceView implements
     private float right_time_bound_ms;
     private float left_pixel_bound;
     private float right_pixel_bound;
+    private int lowestNoteKeyID;
+    private int highestNoteKeyID;
     /*
     End rendering variables
      */
@@ -332,11 +334,29 @@ public class vocalUI extends SurfaceView implements
             note_centers[i] = height - (bottomLineOffset + i * lineSpacing);
         }
 
+        //Indicate key IDs of lowest and highest notes that we will display.
+        //This must jive with the note_centers array. highestNoteKeyID-lowestNoteKeyID+1 = sizeof(note_centers).
+        //note_centers[0] will be the vertical canvas position of lowestNoteKeyID
+        //note_centers[sizeof(note_centers)-1] will be the vertical canvas position of highestNoteKeyID.
+        //The function keyIDtoVertCanvasPos will be used to avoid direct access of the note_centers array.
+        lowestNoteKeyID  = 40; //C4
+        highestNoteKeyID = 52; //C5
+
         //Set the y-limits of the vertical line for "Now"
         yPosNowBottom = note_centers[0];
         yPosNowTop = note_centers[12];
     }
 
+    private float keyIDtoVertCanvasPos(int keyID) {
+        if (keyID >= lowestNoteKeyID && keyID <= highestNoteKeyID) {
+            return note_centers[keyID-lowestNoteKeyID];
+        }
+        else {
+            Log.e(TAG, "Cannot plot note " + keyID +". Outside inclusive bounds of " + lowestNoteKeyID + " and " + highestNoteKeyID + ".");
+            return -1; //Calling function must handle this case.
+        }
+
+    }
 
     private void drawMusicStaff(Canvas canvas) {
 
@@ -379,17 +399,26 @@ public class vocalUI extends SurfaceView implements
                 //rectangle to draw the note. Everything here is in pixels
                 Rect thisNoteRect = new Rect();
                 int top, left, right, bottom;
+                float thisVertNoteCenter;
 
                 for (vocalSongNote thisNote : songNotesCopy) {
                     thisNoteRect.setEmpty();
+
+                    thisVertNoteCenter = keyIDtoVertCanvasPos(thisNote.pianoKeyID);
+                    if (thisVertNoteCenter == -1) {
+                        //If we attempted to plot a keyID outside (lowestNoteKeyID,highestNoteKEYID), skip it.
+                        Log.w(TAG, "Failed to plot note " + thisNote.pianoKeyID);
+                        //Go to the next note in the parent for loop.
+                        continue;
+                    }
 
                     //Scenario 1: Left side of this note is cut off by the left bound
                     if (thisNote.startTime_s * 1000 < left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms > left_time_bound_ms) {
                         //render a left-truncated note
                         left = (int) left_pixel_bound;
                         right = left + (int) ((thisNote.startTime_s * 1000 + thisNote.duration_ms - left_time_bound_ms) * pixelsPerMillisecond);
-                        top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
-                        bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
+                        top = (int) (thisVertNoteCenter - noteWidth / 2);
+                        bottom = (int) (thisVertNoteCenter + noteWidth / 2);
 
                     }
 
@@ -398,8 +427,8 @@ public class vocalUI extends SurfaceView implements
                         //render the note normally
                         left = (int) (left_pixel_bound + (thisNote.startTime_s * 1000 - left_time_bound_ms) * pixelsPerMillisecond);
                         right = (int) (right_pixel_bound - ((right_time_bound_ms - (thisNote.startTime_s * 1000 + thisNote.duration_ms)) * pixelsPerMillisecond));
-                        top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
-                        bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
+                        top = (int) (thisVertNoteCenter - noteWidth / 2);
+                        bottom = (int) (thisVertNoteCenter + noteWidth / 2);
                     }
 
                     //Scenario 3: Right side of this note is cut off by the right bound
@@ -407,14 +436,15 @@ public class vocalUI extends SurfaceView implements
                         //render a right-truncated note
                         right = (int) right_pixel_bound;
                         left = right - (int) ((right_time_bound_ms - thisNote.startTime_s * 1000) * pixelsPerMillisecond);
-                        top = (int) (note_centers[thisNote.pianoKeyID - 40] - noteWidth / 2); //THIS IS BAD. NEED TO DO SOMETHING MORE ROBUST.
-                        bottom = (int) (note_centers[thisNote.pianoKeyID - 40] + noteWidth / 2);
+                        top = (int) (thisVertNoteCenter - noteWidth / 2);
+                        bottom = (int) (thisVertNoteCenter + noteWidth / 2);
                     }
 
                     //Uh oh
                     else {
                         Log.e("vocalUI", "Attempted to plot out-of-bounds note");
-                        break;
+                        //Skip to the next note
+                        continue;
                     }
 
                     //Clear the coordinates of the note
