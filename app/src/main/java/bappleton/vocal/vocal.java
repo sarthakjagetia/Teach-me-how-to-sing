@@ -155,6 +155,7 @@ public class vocal extends AppCompatActivity {
         checkPermissions();
 
         //testing
+        /*
         try {
             MediaPlayer song = new MediaPlayer();
             song.setAudioStreamType(AudioManager.STREAM_MUSIC);
@@ -167,6 +168,7 @@ public class vocal extends AppCompatActivity {
         catch (Exception e) {
             Log.e(TAG, "Playback failed");
         }
+        */
 
     }
 

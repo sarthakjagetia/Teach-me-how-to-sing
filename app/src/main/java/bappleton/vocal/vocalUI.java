@@ -8,6 +8,8 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -93,6 +95,8 @@ public class vocalUI extends SurfaceView implements
     private final int CASE_START_RENDERING  = 3000;
     private final int CASE_RENDER_FRAME     = 3001;
     private final int CASE_STOP_RENDERING   = 3002;
+    private final int CASE_BEGIN_SONG       = 3003;
+    private final int CASE_END_SONG         = 3004;
 
     //This gets called if doing:
     //setContentView(new vocalUI(this));
@@ -240,8 +244,14 @@ public class vocalUI extends SurfaceView implements
 
     public void beginSong() {
         //Capture start time and begin UI rendering
-        //thread.setRunning(true);
 
+        //Message-based approach
+        Message beginSongMsg = Message.obtain();
+        beginSongMsg.what = CASE_BEGIN_SONG;
+        thread.vocalUIHandler.sendMessage(beginSongMsg);
+
+        //Direct access based approach
+        /*
         if(currentSong.getNumNotes() !=0 ){
             startTime_ms = SystemClock.uptimeMillis();
             isSongPlaying = true;
@@ -252,13 +262,24 @@ public class vocalUI extends SurfaceView implements
             isSongPlaying = false;
             Log.e("vocalUI", "Cannot begin song. Number of notes in selected song is zero.");
         }
+        */
 
     }
 
     public void endSong() {
-        //thread.setRunning(false);
+
+        //Message based appproach
+        Message endSongMsg = Message.obtain();
+        endSongMsg.what = CASE_END_SONG;
+        thread.vocalUIHandler.sendMessage(endSongMsg);
+
+        //Direct access based approach
+        /*
         startTime_ms = 0;
         isSongPlaying = false;
+        */
+
+
     }
 
     public void beginRendering() {
@@ -775,6 +796,40 @@ public class vocalUI extends SurfaceView implements
                         case SIGNAL_DETECTION_STOPPED:
                             Log.i(TAG, "Received confirmation from pitch thread that it has stopped");
                             pitchDetectionRunning = false;
+                            break;
+                        case CASE_BEGIN_SONG:
+                            //Try embedding media player into this thread
+                            //Even when waiting until a fully-buffered state to begin playback, the music is VERY choppy.
+                            try {
+                                MediaPlayer song = new MediaPlayer();
+                                song.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                                song.setDataSource("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3");
+                                Log.i(TAG, "Playback source set.");
+                                song.prepare();
+                                Log.i(TAG, "Preparation complete.");
+                                song.setOnBufferingUpdateListener(
+                                        new MediaPlayer.OnBufferingUpdateListener() {
+                                            @Override
+                                            public void onBufferingUpdate(MediaPlayer mp, int percent) {
+                                                Log.i(TAG, "Buffering percent: " + percent);
+                                                if (percent == 100 && !mp.isPlaying()) {
+                                                    mp.start();
+                                                }
+                                            }
+                                        }
+                                );
+                                //song.start();
+                            }
+                            catch (Exception e) {
+                                Log.e(TAG, "Playback failed");
+                            }
+                            //Set variables to begin rendering
+                            startTime_ms = SystemClock.uptimeMillis();
+                            isSongPlaying = true;
+                            break;
+                        case CASE_END_SONG:
+                            startTime_ms = 0;
+                            isSongPlaying = false;
                             break;
                         default:
                             super.handleMessage(msg);

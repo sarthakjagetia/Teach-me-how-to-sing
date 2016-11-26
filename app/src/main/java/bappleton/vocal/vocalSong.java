@@ -1,5 +1,7 @@
 package bappleton.vocal;
 
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.util.Log;
 
 import java.lang.reflect.Array;
@@ -21,14 +23,24 @@ public class vocalSong {
     private ArrayList<vocalSongNote> notes;
     private ArrayList<vocalLyric> lyrics;
 
+    //Playback related variables
+    private String audioPath;
+    private boolean audioPlaybackEnabled;
+
+    private final String TAG = "vocalSong";
+
     public vocalSong(int numNotes, int numLyrics) {
         notes  = new ArrayList<vocalSongNote>(numNotes);
         lyrics = new ArrayList<vocalLyric>(numLyrics);
+        audioPath = "";
+        audioPlaybackEnabled = false;
     }
 
     public vocalSong() {
         notes  = new ArrayList<vocalSongNote>(0);
         lyrics = new ArrayList<vocalLyric>(0);
+        audioPath = "";
+        audioPlaybackEnabled = false;
     }
 
     public vocalSong(ArrayList<vocalSongNote> songNotes, ArrayList<vocalLyric> songLyrics) {
@@ -131,7 +143,65 @@ public class vocalSong {
         return lyrics.size();
     }
 
-    ///Additional functions to be defined as needed
+    public void setAudioPath(String path, boolean audioPlaybackEnabled) {
+        this.audioPath = path;
+        this.audioPlaybackEnabled = audioPlaybackEnabled;
+    }
+
+    public void setAudioPlayback(boolean audioPlaybackEnabled) {
+        this.audioPlaybackEnabled = audioPlaybackEnabled;
+    }
+
+    public boolean isAudioPlaybackEnabled() {
+        return this.audioPlaybackEnabled;
+    }
 
 
+    public void playAudio() {
+        if (isAudioPlaybackEnabled()) {
+            playbackThread playSong = new playbackThread(this.audioPath);
+            playSong.start();
+        }
+        else {
+            Log.w(TAG, "Cannot play. Audio playback is disabled");
+        }
+    }
+
+    private class playbackThread extends Thread {
+
+        public MediaPlayer mp;
+        private String audioPath;
+
+        public playbackThread(String audioPath) {
+            this.audioPath = audioPath;
+        }
+
+        @Override
+        public void run() {
+            try {
+                mp = new MediaPlayer();
+                mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                mp.setDataSource("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3");
+                Log.i(TAG, "Playback source set.");
+                mp.prepare();
+                Log.i(TAG, "Preparation complete.");
+                mp.setOnBufferingUpdateListener(
+                        new MediaPlayer.OnBufferingUpdateListener() {
+                            @Override
+                            public void onBufferingUpdate(MediaPlayer mp, int percent) {
+                                Log.i(TAG, "Buffering percent: " + percent);
+                                if (percent == 100 && !mp.isPlaying()) {
+                                    mp.start();
+                                }
+                            }
+                        }
+                );
+                //song.start();
+            }
+            catch (Exception e) {
+
+            }
+        }
+
+    }
 }
