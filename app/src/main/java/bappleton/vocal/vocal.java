@@ -59,6 +59,8 @@ public class vocal extends AppCompatActivity {
                         MAIN_UI_SONG_RUNNING = false;
                         Button togglePDButton = (Button) findViewById(R.id.toggleButton);
                         togglePDButton.setText("PLAY");
+                        vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
+                        VUI.stopRendering();
                         break;
                     default:
                         //Let the parent class handle any messages that I don't
@@ -80,13 +82,14 @@ public class vocal extends AppCompatActivity {
 
         if(!MAIN_UI_SONG_RUNNING) {
             VUI.beginRendering();
+            VUI.setSong(new vocalExerciseLibrary().demoSong1());
             VUI.beginSong();
             VUI.setParentHandler(mainHandler);
             MAIN_UI_SONG_RUNNING = true;
             togglePDButton.setText("STOP");
         }
         else {
-            //VUI.stopRendering();
+            VUI.stopRendering();
             VUI.endSong();
             MAIN_UI_SONG_RUNNING = false;
             togglePDButton.setText("PLAY");

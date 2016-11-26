@@ -149,11 +149,7 @@ public class vocalUI extends SurfaceView implements
 
     //TO BE DELETED, for pre-integration testing only
     private void AdditionalTestingInit() {
-        this.setSong(demoSong1());
-
-
-        //this.beginSong();
-
+        this.setSong(new vocalExerciseLibrary().demoSong1());
     }
 
     @Override
@@ -219,39 +215,6 @@ public class vocalUI extends SurfaceView implements
         this.parentHandler = parentHandler;
     }
 
-    private vocalSong demoSong1() {
-        //Do re me fa so la ti do
-
-        ArrayList<vocalSongNote> notes = new ArrayList<vocalSongNote>();
-
-        notes.add(new vocalSongNote(40,3,2000));
-        notes.add(new vocalSongNote(42,5,2000));
-        notes.add(new vocalSongNote(44,7,2000));
-        notes.add(new vocalSongNote(45,9,2000));
-        notes.add(new vocalSongNote(47,11,2000));
-        notes.add(new vocalSongNote(49,13,2000));
-        notes.add(new vocalSongNote(51,15,2000));
-        notes.add(new vocalSongNote(52,17,2000));
-
-        Log.i("vocalUI", "Notes vector contains: " + notes.size() + " elements.");
-
-        ArrayList<vocalLyric> lyrics = new ArrayList<vocalLyric>(0);
-
-        lyrics.add(new vocalLyric("Do", 3));
-        lyrics.add(new vocalLyric("Re", 5));
-        lyrics.add(new vocalLyric("Me", 7));
-        lyrics.add(new vocalLyric("Fa", 9));
-        lyrics.add(new vocalLyric("So", 11));
-        lyrics.add(new vocalLyric("La", 13));
-        lyrics.add(new vocalLyric("Ti", 15));
-        lyrics.add(new vocalLyric("Do", 17));
-
-        Log.i("vocalUI", "Lyrics vector contains: " + lyrics.size() + " elements.");
-
-        return new vocalSong(notes, lyrics);
-
-    }
-
     public void beginSong() {
         //Capture start time and begin UI rendering
 
@@ -308,7 +271,7 @@ public class vocalUI extends SurfaceView implements
     private void configureDisplayConstants() {
 
         //The spacing between the horizontal music note lines
-        lineSpacing = (float)Math.round(0.04*height); //50;
+        lineSpacing = (float)Math.round(0.045*height); //50;
 
         //Music staff linewidth. 1 gives a hairline.
         strokeWidth = 1;
@@ -669,7 +632,7 @@ public class vocalUI extends SurfaceView implements
 
             Log.i("vocalUI", "Starting display loop");
 
-            AdditionalTestingInit();
+            //AdditionalTestingInit();
 
             android.os.Process.setThreadPriority(android.os.Process.myTid(), Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
@@ -702,7 +665,8 @@ public class vocalUI extends SurfaceView implements
                             if(running) {
                                 //Render a frame
                                 UIcanvas = surfaceHolder.lockCanvas();
-                                UIcanvas.drawColor(Color.WHITE);
+                                //UIcanvas.drawColor(Color.WHITE);
+                                UIcanvas.drawColor(Color.argb(255,250,250,250));
                                 VUI.drawMusicStaff(UIcanvas);
                                 //If we have pitch detection running, provide pitch feedback
                                 if (pitchDetectionRunning) {
@@ -718,7 +682,7 @@ public class vocalUI extends SurfaceView implements
 
                                 //Update isSongPlaying with whether or not the song is over
                                 if(isSongPlaying) {
-                                   if(currentSong.isSongOver(SystemClock.uptimeMillis() - startTime_ms)) {
+                                   if(currentSong.isSongOver(SystemClock.uptimeMillis() - startTime_ms - timeWindowRenderPastNow)) {
                                        Log.i(TAG, "Song complete");
                                        Log.i(TAG, "Score: " + currentSong.getFinalScore() + "%");
                                        isSongPlaying = false;
