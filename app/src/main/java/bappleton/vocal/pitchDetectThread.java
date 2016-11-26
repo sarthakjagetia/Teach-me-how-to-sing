@@ -26,15 +26,14 @@ public class pitchDetectThread extends Thread {
     private final int CASE_THREAD_IDENTIFY_YOURSELF = 1001;
     private final int CASE_START_DETECTION          = 1002;
     private final int CASE_STOP_DETECTION           = 1003;
+
+    //These messages are sent to my parent to parentHandler various statuses
     private final int SIGNAL_DETECTION_RUNNING      = 2004;
     private final int SIGNAL_DETECTION_STOPPED      = 2005;
     private final int SIGNAL_PITCH_REQUEST          = 2006;
 
 
     private final String TAG = "pitchDetectThread";
-
-
-
 
 
     public pitchDetectThread(Handler parentHandler) {
@@ -145,8 +144,8 @@ public class pitchDetectThread extends Thread {
         //int audioFormat = AudioFormat.ENCODING_PCM_16BIT; //NEEDS to mesh with read() call and bytesPerElement; Use with reading into a short
         int audioFormat = AudioFormat.ENCODING_PCM_FLOAT;
         //bufferElements = 1024; //number of array elements to fetch from AudioRecord
-        bufferElements = 8192; //185 ms between samples
-        //bufferElements = 16384; //370 ms between samples
+        //bufferElements = 8192; //185 ms between samples
+        bufferElements = 16384; //370 ms between samples
         //int bytesPerElement = 2; //when reading into a short, each element consumes 2 bytes
         int bytesPerElement = 4; //when reading into a float, each element consumes 4 bytes
         int bufferSizeInBytes = bufferElements * bytesPerElement;
@@ -196,7 +195,7 @@ public class pitchDetectThread extends Thread {
                 read_yin();
                 time2 = System.currentTimeMillis();
                 processYin();
-                Log.i(TAG, "New recorder data. Read: " + (time2 - time1) + " ms. Process: " + (System.currentTimeMillis() - time2) + " ms. Fetch interval: " + (time1 - time3) + " ms.");
+                //Log.i(TAG, "New recorder data. Read: " + (time2 - time1) + " ms. Process: " + (System.currentTimeMillis() - time2) + " ms. Fetch interval: " + (time1 - time3) + " ms.");
                 time3 = System.currentTimeMillis();
             }
         };
@@ -267,7 +266,7 @@ public class pitchDetectThread extends Thread {
         pitchDetectHandler.sendMessage(pitchRequestMessage);
     }
 
-    public vocalPitchResult getPitchDirecty() {
+    public vocalPitchResult getPitchDirectly() {
         return vpr;
     }
 

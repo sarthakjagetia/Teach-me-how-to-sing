@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
@@ -20,6 +22,7 @@ import android.view.SurfaceView;
 import java.util.ArrayList;
 
 import static android.graphics.Bitmap.createBitmap;
+import static java.lang.Float.NaN;
 
 
 /**
@@ -80,6 +83,13 @@ public class vocalUI extends SurfaceView implements
     End rendering variables
      */
 
+
+    //Messages received from child pitch detection thread
+    private final int SIGNAL_DETECTION_RUNNING      = 2004;
+    private final int SIGNAL_DETECTION_STOPPED      = 2005;
+    private final int SIGNAL_PITCH_REQUEST          = 2006;
+
+    //Messages for main rendering thread
     private final int CASE_START_RENDERING  = 3000;
     private final int CASE_RENDER_FRAME     = 3001;
     private final int CASE_STOP_RENDERING   = 3002;
@@ -344,7 +354,7 @@ public class vocalUI extends SurfaceView implements
 
         //Set the y-limits of the vertical line for "Now"
         yPosNowBottom = note_centers[0];
-        yPosNowTop = note_centers[12];
+        yPosNowTop = note_centers[note_centers.length-1];
     }
 
     private float keyIDtoVertCanvasPos(int keyID) {
@@ -491,10 +501,106 @@ public class vocalUI extends SurfaceView implements
 
                 }
             }
+        }
+    }
+
+    private void drawPitchFeedback(Canvas canvas, float exactKeyID, int currentNote) {
+        //Canvas: canvas on which we should draw
+        //exactKeyID: what the user is currently singing
+        //currentNote: what the song is currently playing
+
+        //Horizontial position of the feedback is xPosNow; we're drawing it on top of the "now" line.
+        //Vertical position is determined using lowestNoteKeyID, highestNoteKeyID, yPosNowBottom, yPosNowTop
 
 
+        int yMarkerPos;
+        int xMarkerPos;
+        int markerWidth;
+
+        //Configure vertical position of the pitch feedback marker.
+        //This indicates what pitch the user is singing
+        if (exactKeyID >= lowestNoteKeyID-0.5 && exactKeyID <= highestNoteKeyID+0.5) {
+            //If the user's singing a note that is within the bounds of the canvas
+            yMarkerPos = Math.round((exactKeyID - (float) lowestNoteKeyID) * (yPosNowTop - yPosNowBottom) / ((float) (highestNoteKeyID - lowestNoteKeyID)) + yPosNowBottom);
+        }
+        else if (exactKeyID < lowestNoteKeyID){
+            //User is singing a note that is below the canvas bounds
+            //Note that this case handles the condition where exactKeyID = -1. No pitch is detected.
+            yMarkerPos = Math.round(yPosNowBottom + lineSpacing/2); //Should this be handled more dynamically? How do we make sure there's room on the canvas?
+        }
+        else if (exactKeyID > highestNoteKeyID) {
+            //User if singing a note that is higher than the canvas bounds
+            yMarkerPos = Math.round(yPosNowTop - lineSpacing/2); //Should this be handled more dynamically? How do we make sure there's room on the canvas?
+        }
+        else {
+            Log.e(TAG, "Unhandled keyID of " + exactKeyID);
+            yMarkerPos = Math.round(yPosNowBottom + lineSpacing/2);
         }
 
+        //Configure color of the pitch feedback marker
+        //This indicates how close exactKeyID is to currentNote
+        //Automatically generates heatmap of green-->red based on error
+        float red;
+        float green;
+        float blue;
+        float max_error = 2; //How many semitones off does the user need to be to see red?
+        float mid_error = 1; //How many semitones off does the user need to be to see yellow?
+        float currentError;
+
+
+        if (exactKeyID == -1){
+            //If there's no note we're supposed to be singing right now
+            red = 200;
+            green = 200;
+            blue = 200;
+
+        }
+        else if (currentNote == -1) {
+            //If there's no pitch detected
+            red = 0;
+            green = 255;
+            blue = 0;
+        }
+        else {
+            //If there's a note we should be singing right now
+            currentError = Math.abs(exactKeyID-currentNote);
+            blue = 0;
+            if (currentError < mid_error) {
+                green = 255;
+                red = (currentError) / (mid_error - 0) * 255;
+            } else if (currentError >= mid_error && currentError <= max_error) {
+                red = 255;
+                green = 255 - (currentError - mid_error) / (max_error - mid_error) * 255;
+            } else if (currentError > max_error) {
+                red = 255;
+                green = 0;
+            } else {
+                Log.e(TAG, "Unhandled pitch error of " + currentError);
+                red = 0;
+                green = 0;
+            }
+        }
+
+        xMarkerPos = Math.round(xPosNow);
+        markerWidth = Math.round(lineSpacing * 3 / 4) * 2; //This will always produce an even number. Later we divide by 2 and want an integer.
+
+        Point p1 = new Point(xMarkerPos, yMarkerPos);
+        Point p2 = new Point(xMarkerPos - markerWidth / 2, yMarkerPos - markerWidth / 2);
+        Point p3 = new Point(xMarkerPos - markerWidth / 2, yMarkerPos + markerWidth / 2);
+
+        Path markerPath = new Path();
+        markerPath.setFillType(Path.FillType.EVEN_ODD);
+
+        markerPath.moveTo(p1.x, p1.y);
+        markerPath.lineTo(p2.x, p2.y);
+        markerPath.lineTo(p3.x, p3.y);
+        markerPath.close();
+
+        Paint markerPaint = new Paint();
+        markerPaint.setColor(Color.GRAY);
+        markerPaint.setARGB(255,Math.round(red), Math.round(green),Math.round(blue));
+
+        canvas.drawPath(markerPath, markerPaint);
     }
 
     public class MainThread extends Thread {
@@ -502,6 +608,7 @@ public class vocalUI extends SurfaceView implements
         public Handler vocalUIHandler;
 
         private boolean running;
+        private boolean pitchDetectionRunning;
         private SurfaceHolder surfaceHolder;
         private vocalUI VUI;
         private Canvas UIcanvas;
@@ -561,6 +668,8 @@ public class vocalUI extends SurfaceView implements
 
             android.os.Process.setThreadPriority(android.os.Process.myTid(), Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
+            //This will be update to true when pitchThread confirms it's running
+            pitchDetectionRunning = false;
 
             /*
             while (running) {
@@ -627,6 +736,15 @@ public class vocalUI extends SurfaceView implements
                                 UIcanvas = surfaceHolder.lockCanvas();
                                 UIcanvas.drawColor(Color.WHITE);
                                 VUI.drawMusicStaff(UIcanvas);
+                                //If we have pitch detection running, provide pitch feedback
+                                if (pitchDetectionRunning) {
+                                    //Presently we will directly grab pitch data from the pitch thread.
+                                    //This is a nice approach because we will get whatever the pitch is at time of rendering.
+                                    //However, I am not sure if it is more kosher to receive data via Message. TBD.
+                                    //drawPitchFeedback(UIcanvas, pitchThread.getPitchDirectly().getExactKeyID());
+                                    //Testing purposes:
+                                    drawPitchFeedback(UIcanvas, pitchThread.getPitchDirectly().getExactKeyID(), currentSong.getCurrentNote(SystemClock.uptimeMillis()-startTime_ms));
+                                }
                                 surfaceHolder.unlockCanvasAndPost(UIcanvas);
                                 //Check the framerate
                                 checkFramerate();
@@ -643,7 +761,16 @@ public class vocalUI extends SurfaceView implements
                             running = false;
                             //Stop pitch detection
                             pitchThread.stopPitchDetection();
+                            pitchDetectionRunning = false;
                             Log.i(TAG, "Rendering stopped.");
+                            break;
+                        case SIGNAL_DETECTION_RUNNING:
+                            Log.i(TAG, "Received confirmation from pitch thread that it is running.");
+                            pitchDetectionRunning = true;
+                            break;
+                        case SIGNAL_DETECTION_STOPPED:
+                            Log.i(TAG, "Received confirmation from pitch thread that it has stopped");
+                            pitchDetectionRunning = false;
                             break;
                         default:
                             super.handleMessage(msg);

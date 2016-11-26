@@ -38,6 +38,7 @@ public class vocalPitchResult {
     private int   closestKeyID;
     private String noteName;
     private int errorPercent;
+    private final String TAG = "vocalPitchResult";
 
     vocalPitchResult() {
         A4_frequency = 440;
@@ -60,8 +61,16 @@ public class vocalPitchResult {
     }
 
     private void calculateKeyID() {
-        exactKeyID = (float) (Math.log10(pitchHz_f/A4_frequency)*12/Math.log10(2) + 49);
-        closestKeyID = Math.round(exactKeyID);
+        if (pitchHz_f > 0) {
+            exactKeyID = (float) (Math.log10(pitchHz_f / A4_frequency) * 12 / Math.log10(2) + 49);
+            closestKeyID = Math.round(exactKeyID);
+        }
+        else {
+            //Note that Yin algorithm returns -1 for the frequency when nothing is detected.
+            //Will carry through the -1. Calling functions must handle it as they see fit.
+            exactKeyID = -1;
+            closestKeyID = -1;
+        }
     }
 
     private void calculateErrorClosestNote() {

@@ -65,7 +65,24 @@ public class vocalSong {
     }
 
     //Note: this function requires, for efficiency, that notes are stored in sequential order
+    public int getCurrentNote (float currentTime_ms) {
+        //Loop through the notes in the song and pick out the one that the user should be singing at time currentTime_ms
+        for (vocalSongNote nextNote : notes) {
+            if (currentTime_ms >= nextNote.startTime_s*1000 && currentTime_ms <= nextNote.startTime_s*1000+nextNote.duration_ms) {
+                //If we've found the note that's playing at currentTime_ms
+                return nextNote.pianoKeyID;
+            }
+            else if (nextNote.startTime_s*1000 > currentTime_ms) {
+                //If we've found a note that starts beyond the start of currentTime_ms, stop searching.
+                //Calling function needs to handle this case. No note should be sung right now.
+                return -1;
+            }
+        }
+        //No note should be sung right now. Calling function needs to handle this case.
+        return -1;
+    }
 
+    //Note: this function requires, for efficiency, that notes are stored in sequential order
     public ArrayList<vocalLyric> getLyricsinWindow (float startTime_ms, float endTime_ms) {
         //Let's attack this similary to how we got the music notes in the window, except, the lyrics don't have a duration
 
