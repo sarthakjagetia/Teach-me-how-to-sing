@@ -2,6 +2,8 @@ package bappleton.vocal;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -42,7 +44,9 @@ public class vocal extends AppCompatActivity {
 
     //Define int constants for permission handling
     public final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2000;
+    public final int PERMISSIONS_REQUEST_INTERNET     = 2001;
     boolean PERMISSIONS_RECORD_AUDIO = false;
+    boolean PERMISSIONS_INTERNET = false;
 
     //Define int constants for application behavior
     private final int pitch_refresh_period = 100; //Delay between UI updates for pitch, in ms
@@ -50,6 +54,9 @@ public class vocal extends AppCompatActivity {
     //Define booleans to control application flow
     private boolean MAIN_UI_PITCH_DETECTION_RUNNING = false; //Indicates whether the UI thread and pitch detect thread should be in a request pitch/receive pitch loop
     private boolean MAIN_UI_PITCH_DETECTION_READY = false; //Indicates whether the pitch detect thread is ready to be asked for a pitch
+
+
+    private final String TAG = "vocalMain";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,7 +97,7 @@ public class vocal extends AppCompatActivity {
                     case CASE_RECEIVE_PITCH:
                         //Update UI with the pitch
                         vocalPitchResult vpr = (vocalPitchResult)inputMessage.obj;
-                        updateUIPitchView(vpr);
+                        //updateUIPitchView(vpr);
                         if (MAIN_UI_PITCH_DETECTION_RUNNING) {
                             //If we're in a running state, send a new message to the background pitch thread to tell it to give us more pitch data
                             Message msg_get_pitch = Message.obtain();
@@ -147,6 +154,20 @@ public class vocal extends AppCompatActivity {
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
 
+        //testing
+        try {
+            MediaPlayer song = new MediaPlayer();
+            song.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            song.setDataSource("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3");
+            Log.i(TAG, "Playback source set.");
+            song.prepare();
+            Log.i(TAG, "Preparation complete.");
+            song.start();
+        }
+        catch (Exception e) {
+            Log.e(TAG, "Playback failed");
+        }
+
     }
 
 
@@ -162,18 +183,40 @@ public class vocal extends AppCompatActivity {
 //        }
 
         vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
+        Button togglePDButton = (Button) findViewById(R.id.toggleButton);
+
+
+
 
         if(!MAIN_UI_PITCH_DETECTION_RUNNING) {
             //thread_test.startPitchDetection();
             VUI.beginRendering();
             VUI.beginSong();
             MAIN_UI_PITCH_DETECTION_RUNNING = true;
+            togglePDButton.setText("STOP");
+
+            /*
+            try {
+                MediaPlayer song = new MediaPlayer();
+                song.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                song.setDataSource("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3");
+                Log.i(TAG, "Playback source set.");
+                song.prepare();
+                Log.i(TAG, "Preparation complete.");
+                song.start();
+            }
+            catch (Exception e) {
+                Log.e(TAG, "Playback failed");
+            }
+            */
+
         }
         else {
             //thread_test.stopPitchDetection();
             VUI.stopRendering();
             VUI.endSong();
             MAIN_UI_PITCH_DETECTION_RUNNING = false;
+            togglePDButton.setText("PLAY");
         }
 
         /*
@@ -199,7 +242,7 @@ public class vocal extends AppCompatActivity {
         */
 
     }
-
+/*
     private void updateUIPitchView(vocalPitchResult vpr) {
         //TextView pitch_text = (TextView) findViewById(R.id.pitchView);
         //pitch_text.setText(Integer.toString(pitch) + " Hz");
@@ -226,7 +269,7 @@ public class vocal extends AppCompatActivity {
         errorView.setText(vpr.getErrorPercent() + " %");
 
     }
-
+*/
 
     class pitchThread extends Thread {
         //WOULD IT HAVE BEEN BETTER to somehow integrate this class into the pitchDetect class??
@@ -320,12 +363,30 @@ public class vocal extends AppCompatActivity {
             Log.e("B_RECORD_AUDIO", "Permission unrecognized");
         }
 
+        //Check for permission to access internet
+        permissionCheck = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.INTERNET);
+        if (permissionCheck == PackageManager.PERMISSION_DENIED){
+            Log.i(TAG, "Internet permission denied, requesting permission");
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.INTERNET},
+                    PERMISSIONS_REQUEST_INTERNET);
+        }
+        else if (permissionCheck == PackageManager.PERMISSION_GRANTED){
+            Log.i(TAG, "Internet permission granted");
+            PERMISSIONS_INTERNET = true;
+        }
+        else {
+            Log.e(TAG, "Internet permission state unrecognized.");
+        }
+
+
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case PERMISSIONS_REQUEST_RECORD_AUDIO: {
+            case PERMISSIONS_REQUEST_RECORD_AUDIO:
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -338,10 +399,24 @@ public class vocal extends AppCompatActivity {
                     PERMISSIONS_RECORD_AUDIO = false;
                     Log.i("RECORD_AUDIO", "Permission denied.");
                 }
-                return;
-            }
+                break;
+            case PERMISSIONS_REQUEST_INTERNET:
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // permission was granted, yay!
+                    PERMISSIONS_INTERNET = true;
+                    Log.i(TAG, "Internet permission granted.");
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                    PERMISSIONS_INTERNET = false;
+                    Log.i(TAG, "Internet permission denied.");
+                }
+                break;
             // other 'case' lines to check for other
             // permissions this app might request
         }
+
     }
 }

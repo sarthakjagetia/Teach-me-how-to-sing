@@ -27,6 +27,20 @@
             android:id="@+id/pitchView"
             />
 
+        <Button
+            android:text="PLAY"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/toggleButton"
+            android:textSize="20sp"
+            android:onClick="toggleDetection"/>
+
+        <bappleton.vocal.vocalUI
+            android:layout_width="match_parent"
+            android:id="@+id/vocalUIdisplay"
+            android:layout_height="match_parent" />
+
+        <!--
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
@@ -96,19 +110,7 @@
                 android:textSize="20sp"
                 android:textAlignment="textEnd" />
         </LinearLayout>
-
-        <Button
-            android:text="Start Detection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/toggleButton"
-            android:textSize="20sp"
-            android:onClick="toggleDetection"/>
-
-        <bappleton.vocal.vocalUI
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:id="@+id/vocalUIdisplay"/>
+-->
 
     </LinearLayout>
 

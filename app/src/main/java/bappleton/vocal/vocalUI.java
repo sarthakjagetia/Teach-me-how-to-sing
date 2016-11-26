@@ -69,7 +69,7 @@ public class vocalUI extends SurfaceView implements
     private float xPosNow;
     private float noteWidth;
     private Paint noteRectPaint;
-    private String[] notes = {"C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4", "C5"};
+    private String[] notes = {"A3","A#3","B3","C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4", "C5", "C#5", "D5", "D#5", "E5"};
     private  float[] note_centers;
     private float yPosNowBottom;
     private float yPosNowTop;
@@ -277,13 +277,13 @@ public class vocalUI extends SurfaceView implements
     private void configureDisplayConstants() {
 
         //The spacing between the horizontal music note lines
-        lineSpacing = (float)Math.round(0.06*height); //50;
+        lineSpacing = (float)Math.round(0.04*height); //50;
 
         //Music staff linewidth. 1 gives a hairline.
         strokeWidth = 1;
 
         //Offset between the bottom music note line and the bottom of the canvas
-        bottomLineOffset = (float)Math.round(0.08*height); //20;
+        bottomLineOffset = (float)Math.round(0.10*height); //20;
 
         //Offset between the left bound of the music note line and the canvas. This will be adjusted automatically if the note name won't fit.
         xLeftPadding = (float)Math.round(0.02*height);//20;
@@ -295,12 +295,14 @@ public class vocalUI extends SurfaceView implements
         linePaint = new Paint();
         linePaint.setColor(Color.BLACK);
         linePaint.setStrokeWidth(strokeWidth);
+        linePaint.setAntiAlias(true);
 
         //Paint configuration for music note names
         //Presently these scale as a function of canvas width
         noteTextPaint = new Paint();
         noteTextPaint.setColor(Color.GRAY);
         noteTextPaint.setTextSize((float)Math.round(0.04*width));  //(30);
+        noteTextPaint.setAntiAlias(true);
 
         //Adjust xLeftPadding if the longest note name doesn't fit
         textBounds = new Rect();
@@ -338,9 +340,10 @@ public class vocalUI extends SurfaceView implements
         noteRectPaint = new Paint();
         noteRectPaint.setColor(Color.BLUE);
 
-        //Calculate array that holds the y-positions of the 13 music note lines. 0 corresponds to the bottom line.
-        note_centers = new float[13];
-        for (int i = 0; i < 13; i++) {
+        //Calculate array that holds the y-positions of the 20 music note lines. 0 corresponds to the bottom line.
+        //There MUST be note names stores in the "notes" array to match up with these
+        note_centers = new float[20];
+        for (int i = 0; i < note_centers.length; i++) {
             note_centers[i] = height - (bottomLineOffset + i * lineSpacing);
         }
 
@@ -349,8 +352,8 @@ public class vocalUI extends SurfaceView implements
         //note_centers[0] will be the vertical canvas position of lowestNoteKeyID
         //note_centers[sizeof(note_centers)-1] will be the vertical canvas position of highestNoteKeyID.
         //The function keyIDtoVertCanvasPos will be used to avoid direct access of the note_centers array.
-        lowestNoteKeyID  = 40; //C4
-        highestNoteKeyID = 52; //C5
+        lowestNoteKeyID  = 37; //C4
+        highestNoteKeyID = 56; //C5
 
         //Set the y-limits of the vertical line for "Now"
         yPosNowBottom = note_centers[0];
@@ -374,8 +377,8 @@ public class vocalUI extends SurfaceView implements
         Draw the staff lines, note names, and a vertical line indicating "now"
          */
 
-        //13 staff lines and note names
-        for (int i = 0; i < 13; i++) {
+        //20 staff lines and note names
+        for (int i = 0; i < note_centers.length; i++) {
             canvas.drawLine(0 + xLeftPadding, note_centers[i], width - xRightPadding, note_centers[i], linePaint);
             canvas.drawText(notes[i], 0, note_centers[i] + textBounds.height() / 2, noteTextPaint);
         }
@@ -488,6 +491,7 @@ public class vocalUI extends SurfaceView implements
                 Paint lyricsPaint = new Paint();
                 lyricsPaint.setColor(Color.BLACK);
                 lyricsPaint.setTextSize(30);
+                lyricsPaint.setAntiAlias(true);
 
                 for (vocalLyric thisLyric : songLyricsCopy) {
 
