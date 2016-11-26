@@ -103,6 +103,7 @@ public class vocalUI extends SurfaceView implements
 
     //Messages to send back to parent thread
     private final int SIGNAL_SONG_COMPLETE  = 4000;
+    private final int SIGNAL_UI_UPDATE      = 4001;
 
     //This gets called if doing:
     //setContentView(new vocalUI(this));
@@ -599,6 +600,11 @@ public class vocalUI extends SurfaceView implements
         private long renderStartTime;
         private long renderTimer;
 
+        //Variables for updating main UI
+        private vocalUIupdate mainUIupdate;
+        private float elapsedTime_ms;
+        private float lastUpdate_ms;
+
         public MainThread(SurfaceHolder surfaceHolder, vocalUI VUI) {
             super();
             this.surfaceHolder = surfaceHolder;
@@ -627,6 +633,33 @@ public class vocalUI extends SurfaceView implements
             }
         }
 
+        private void updateMainUI(boolean now) {
+            //Function to update main UI with pertinent information during playback
+
+            //Send a temporal position and score update to the main UI every second
+            elapsedTime_ms = SystemClock.uptimeMillis()-startTime_ms;
+            if (elapsedTime_ms - lastUpdate_ms > 1000 || now) {
+
+                //Set time information
+                mainUIupdate.setTimeStatus(elapsedTime_ms,currentSong.getSongLength_s());
+
+                //Set score information
+                mainUIupdate.setScore(currentSong.getFinalScore());
+
+                //Send data to main UI
+                Message mainUIupdateMSG = Message.obtain();
+                mainUIupdateMSG.what = SIGNAL_UI_UPDATE;
+                mainUIupdateMSG.obj  = mainUIupdate;
+                parentHandler.sendMessage(mainUIupdateMSG);
+
+                //Record the time of this update, in terms of the elapsed song time
+                lastUpdate_ms = elapsedTime_ms;
+            }
+
+
+
+        }
+
         @Override
         public void run() {
 
@@ -638,6 +671,10 @@ public class vocalUI extends SurfaceView implements
 
             //This will be update to true when pitchThread confirms it's running
             pitchDetectionRunning = false;
+
+            //Initialize the UI update object
+            mainUIupdate = new vocalUIupdate();
+            lastUpdate_ms = 0;
 
             Looper.prepare();
             //Define the message handler for this thread
@@ -680,8 +717,9 @@ public class vocalUI extends SurfaceView implements
                                 //Check the framerate
                                 checkFramerate();
 
-                                //Update isSongPlaying with whether or not the song is over
+                                //If a song is currenly playing, communicate relevant info back to the main UI
                                 if(isSongPlaying) {
+                                    //Check to see if the song has ended. If so, tell the main UI via message immediately.
                                    if(currentSong.isSongOver(SystemClock.uptimeMillis() - startTime_ms - timeWindowRenderPastNow)) {
                                        Log.i(TAG, "Song complete");
                                        Log.i(TAG, "Score: " + currentSong.getFinalScore() + "%");
@@ -690,7 +728,10 @@ public class vocalUI extends SurfaceView implements
                                        songCompleteMsg.what = SIGNAL_SONG_COMPLETE;
                                        songCompleteMsg.arg1 = currentSong.getFinalScore();
                                        parentHandler.sendMessage(songCompleteMsg);
+                                       updateMainUI(true);
                                    }
+                                    //Perform lower-priority periodic main UI updates
+                                    updateMainUI(false);
                                 }
 
                                 //Tell myself to do it again.
@@ -720,7 +761,9 @@ public class vocalUI extends SurfaceView implements
                         case CASE_BEGIN_SONG:
                             //Set variables to begin rendering
                             startTime_ms = SystemClock.uptimeMillis();
+                            lastUpdate_ms = 0;
                             isSongPlaying = true;
+                            updateMainUI(true);
                             break;
                         case CASE_END_SONG:
                             //Set variables to stop rendering

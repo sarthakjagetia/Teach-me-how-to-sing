@@ -16,16 +16,20 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 public class vocal extends AppCompatActivity {
 
     private Handler mainHandler;
     pitchDetectThread thread_test;
+    private vocalUIupdate UIupdate;
+    private vocalExerciseLibrary exerciseLibrary;
 
     private final int SIGNAL_DETECTION_RUNNING      = 2004;
     private final int SIGNAL_DETECTION_STOPPED      = 2005;
     private final int SIGNAL_SONG_COMPLETE  = 4000;
+    private final int SIGNAL_UI_UPDATE      = 4001;
 
     //Define int constants for permission handling
     public final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2000;
@@ -62,6 +66,13 @@ public class vocal extends AppCompatActivity {
                         vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
                         VUI.stopRendering();
                         break;
+                    case SIGNAL_UI_UPDATE:
+                        //Received message from vocalUI object with info to update UI
+                        //message.obj received is of type vocalUIupdate
+                        UIupdate = (vocalUIupdate) inputMessage.obj;
+                        updatePlaybackTime(UIupdate.getTimeElapsed(),UIupdate.getTimeRemaining(), UIupdate.getPercentComplete());
+                        updateScore(UIupdate.getScore());
+                        break;
                     default:
                         //Let the parent class handle any messages that I don't
                         super.handleMessage(inputMessage);
@@ -72,6 +83,34 @@ public class vocal extends AppCompatActivity {
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
 
+        //Initialze the exercise library and display the info for demo song 1
+        exerciseLibrary = new vocalExerciseLibrary();
+        updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
+
+    }
+
+
+    public void updateScore(String score) {
+        TextView sc = (TextView) findViewById(R.id.scoreView);
+        sc.setText(score);
+    }
+
+    public void updatePlaybackTime(String timeElapsed, String timeRemaining, int percentComplete) {
+        TextView te = (TextView) findViewById(R.id.timeElapsedView);
+        TextView tr = (TextView) findViewById(R.id.timeRemainingView);
+        SeekBar  sb = (SeekBar)  findViewById(R.id.seekBar);
+
+        te.setText(timeElapsed);
+        tr.setText(timeRemaining);
+        sb.setProgress(percentComplete);
+    }
+
+    public void updateSongInfoDisplay(String artist, String trackName) {
+        TextView artist_text = (TextView) findViewById(R.id.artistName);
+        TextView track_text  = (TextView) findViewById(R.id.songName);
+
+        artist_text.setText(artist);
+        track_text.setText(trackName);
     }
 
 
@@ -82,7 +121,8 @@ public class vocal extends AppCompatActivity {
 
         if(!MAIN_UI_SONG_RUNNING) {
             VUI.beginRendering();
-            VUI.setSong(new vocalExerciseLibrary().demoSong1());
+            VUI.setSong(exerciseLibrary.demoSong1());
+            //updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
             VUI.beginSong();
             VUI.setParentHandler(mainHandler);
             MAIN_UI_SONG_RUNNING = true;

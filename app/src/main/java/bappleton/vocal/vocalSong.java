@@ -31,6 +31,10 @@ public class vocalSong {
     private String audioPath;
     private boolean audioPlaybackEnabled;
 
+    //General song information
+    public String artist;
+    public String trackName;
+
     private final String TAG = "vocalSong";
 
     /*
@@ -49,9 +53,12 @@ public class vocalSong {
     }
     */
 
-    public vocalSong(ArrayList<vocalSongNote> songNotes, ArrayList<vocalLyric> songLyrics) {
+    public vocalSong(ArrayList<vocalSongNote> songNotes, ArrayList<vocalLyric> songLyrics, String artist, String trackName) {
         this.notes  = songNotes;
         this.lyrics = songLyrics;
+        this.artist = artist;
+        this.trackName = trackName;
+
         audioPath = "";
         audioPlaybackEnabled = false;
         calculateDuration();

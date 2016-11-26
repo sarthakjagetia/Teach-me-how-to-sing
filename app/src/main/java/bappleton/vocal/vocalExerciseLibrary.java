@@ -43,7 +43,7 @@ public class vocalExerciseLibrary {
 
         Log.i("vocalUI", "Lyrics vector contains: " + lyrics.size() + " elements.");
 
-        return new vocalSong(notes, lyrics);
+        return new vocalSong(notes, lyrics, "Vocal Beginner Series", "Exercise 1");
 
     }
 }
