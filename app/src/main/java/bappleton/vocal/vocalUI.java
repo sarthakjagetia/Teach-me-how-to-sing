@@ -50,6 +50,9 @@ public class vocalUI extends SurfaceView implements
     //Is song playing?
     private boolean isSongPlaying;
 
+    //Parent handler for sending messages
+    Handler parentHandler;
+
     private final String TAG = "vocalUI";
 
     /*
@@ -97,6 +100,9 @@ public class vocalUI extends SurfaceView implements
     private final int CASE_STOP_RENDERING   = 3002;
     private final int CASE_BEGIN_SONG       = 3003;
     private final int CASE_END_SONG         = 3004;
+
+    //Messages to send back to parent thread
+    private final int SIGNAL_SONG_COMPLETE  = 4000;
 
     //This gets called if doing:
     //setContentView(new vocalUI(this));
@@ -207,6 +213,10 @@ public class vocalUI extends SurfaceView implements
     public void setSong(vocalSong song) {
         this.currentSong = song;
         Log.i("vocalUI", "New song selected. Song length is " + this.currentSong.getSongLength_s() + " seconds. Contains " + this.currentSong.getNumNotes() + " music notes and " + this.currentSong.getNumLyrics() + " lyrics.");
+    }
+
+    public void setParentHandler(Handler parentHandler) {
+        this.parentHandler = parentHandler;
     }
 
     private vocalSong demoSong1() {
@@ -481,7 +491,15 @@ public class vocalUI extends SurfaceView implements
                         continue;
                     }
 
-                    //Clear the coordinates of the note
+                    //Experimental: Note coloring based on hit success
+                    if(thisNote.pitchMatchedKeyID) {
+                        noteRectPaint.setColor(Color.BLUE);
+                    }
+                    else {
+                        noteRectPaint.setColor(Color.GRAY);
+                    }
+
+                    //Draw the note on the canvas
                     thisNoteRect.set(left, top, right, bottom);
                     canvas.drawRect(thisNoteRect, noteRectPaint);
 
@@ -529,14 +547,13 @@ public class vocalUI extends SurfaceView implements
         }
     }
 
-    private void drawPitchFeedback(Canvas canvas, float exactKeyID, int currentNote) {
+    private void drawPitchFeedback(Canvas canvas, float exactKeyID, vocalSongNote currentNote) {
         //Canvas: canvas on which we should draw
         //exactKeyID: what the user is currently singing
         //currentNote: what the song is currently playing
 
         //Horizontial position of the feedback is xPosNow; we're drawing it on top of the "now" line.
         //Vertical position is determined using lowestNoteKeyID, highestNoteKeyID, yPosNowBottom, yPosNowTop
-
 
         int yMarkerPos;
         int xMarkerPos;
@@ -548,9 +565,8 @@ public class vocalUI extends SurfaceView implements
             //If the user's singing a note that is within the bounds of the canvas
             yMarkerPos = Math.round((exactKeyID - (float) lowestNoteKeyID) * (yPosNowTop - yPosNowBottom) / ((float) (highestNoteKeyID - lowestNoteKeyID)) + yPosNowBottom);
         }
-        else if (exactKeyID < lowestNoteKeyID){
+        else if (exactKeyID < lowestNoteKeyID && exactKeyID >= 1){
             //User is singing a note that is below the canvas bounds
-            //Note that this case handles the condition where exactKeyID = -1. No pitch is detected.
             yMarkerPos = Math.round(yPosNowBottom + lineSpacing/2); //Should this be handled more dynamically? How do we make sure there's room on the canvas?
         }
         else if (exactKeyID > highestNoteKeyID) {
@@ -558,51 +574,24 @@ public class vocalUI extends SurfaceView implements
             yMarkerPos = Math.round(yPosNowTop - lineSpacing/2); //Should this be handled more dynamically? How do we make sure there's room on the canvas?
         }
         else {
-            Log.e(TAG, "Unhandled keyID of " + exactKeyID);
-            yMarkerPos = Math.round(yPosNowBottom + lineSpacing/2);
+            //Intentionally draw the pitch feedback off-canvas.
+            yMarkerPos = Math.round(height+lineSpacing*2);
         }
 
-        //Configure color of the pitch feedback marker
-        //This indicates how close exactKeyID is to currentNote
-        //Automatically generates heatmap of green-->red based on error
-        float red;
-        float green;
-        float blue;
-        float max_error = 2; //How many semitones off does the user need to be to see red?
-        float mid_error = 1; //How many semitones off does the user need to be to see yellow?
+        float no_error = (float)0.3; //What is the threshold for singing the correct note?
         float currentError;
 
+        if(exactKeyID  != -1) {
+            //If there's a pitch detected
 
-        if (exactKeyID == -1){
-            //If there's no note we're supposed to be singing right now
-            red = 200;
-            green = 200;
-            blue = 200;
+            //Calculate currentError
+            currentError = Math.abs(exactKeyID-currentNote.pianoKeyID);
 
-        }
-        else if (currentNote == -1) {
-            //If there's no pitch detected
-            red = 0;
-            green = 255;
-            blue = 0;
-        }
-        else {
-            //If there's a note we should be singing right now
-            currentError = Math.abs(exactKeyID-currentNote);
-            blue = 0;
-            if (currentError < mid_error) {
-                green = 255;
-                red = (currentError) / (mid_error - 0) * 255;
-            } else if (currentError >= mid_error && currentError <= max_error) {
-                red = 255;
-                green = 255 - (currentError - mid_error) / (max_error - mid_error) * 255;
-            } else if (currentError > max_error) {
-                red = 255;
-                green = 0;
-            } else {
-                Log.e(TAG, "Unhandled pitch error of " + currentError);
-                red = 0;
-                green = 0;
+            //Record whether the correct pith was sung
+            //This information is used to score the user
+            if (currentError < no_error && !currentNote.pitchMatchedKeyID) {
+                Log.i(TAG, "Note hit.");
+                currentNote.pitchMatchedKeyID = true;
             }
         }
 
@@ -622,8 +611,7 @@ public class vocalUI extends SurfaceView implements
         markerPath.close();
 
         Paint markerPaint = new Paint();
-        markerPaint.setColor(Color.GRAY);
-        markerPaint.setARGB(255,Math.round(red), Math.round(green),Math.round(blue));
+        markerPaint.setARGB(255,50,50,50);
 
         canvas.drawPath(markerPath, markerPaint);
     }
@@ -679,15 +667,7 @@ public class vocalUI extends SurfaceView implements
         @Override
         public void run() {
 
-            //Canvas canvas;
-            //Paint paint = new Paint();
-            //Log.i("vocalUI", "can you hear me??");
             Log.i("vocalUI", "Starting display loop");
-
-            //frameCount = 0;
-            //renderStartTime = SystemClock.uptimeMillis();
-            //renderTimer = 0;
-
 
             AdditionalTestingInit();
 
@@ -695,43 +675,6 @@ public class vocalUI extends SurfaceView implements
 
             //This will be update to true when pitchThread confirms it's running
             pitchDetectionRunning = false;
-
-            /*
-            while (running) {
-
-
-
-
-
-                //Get a canvas from the surface holder
-                //~50 ms to complete on Nexus 5 API 24 1080x1920 screen
-                canvas = this.surfaceHolder.lockCanvas();
-                canvas.drawColor(Color.WHITE);
-                VUI.drawMusicStaff(canvas);
-
-                //display
-                //~50 ms to complete on Nexus 5 API 24 1080x1920 screen
-                this.surfaceHolder.unlockCanvasAndPost(canvas);
-                frameCount++;
-
-
-                //Every ten seconds, check the framerate
-                renderTimer = SystemClock.uptimeMillis()-renderStartTime;
-                if(renderTimer > 10000) {
-                    framePeriod = ((float)renderTimer) / ((float)(frameCount));
-                    frameRate = 1000/framePeriod;
-                    //If we're geting less than 25 fps, print a warning.
-                    if(Math.round(frameRate) < 25) {
-                        Log.w("vocalUI", "Frame rate is less than 25 fps target: " + Math.round(frameRate) + " fps (" + Math.round(framePeriod) + " ms/frame)");
-                        Log.w("vocalUI", "Hardware acceleration enabled: " + canvas.isHardwareAccelerated());
-                    }
-                    frameCount = 0;
-                    renderStartTime = SystemClock.uptimeMillis();
-                }
-
-
-            }
-            */
 
             Looper.prepare();
             //Define the message handler for this thread
@@ -766,13 +709,26 @@ public class vocalUI extends SurfaceView implements
                                     //Presently we will directly grab pitch data from the pitch thread.
                                     //This is a nice approach because we will get whatever the pitch is at time of rendering.
                                     //However, I am not sure if it is more kosher to receive data via Message. TBD.
-                                    //drawPitchFeedback(UIcanvas, pitchThread.getPitchDirectly().getExactKeyID());
-                                    //Testing purposes:
                                     drawPitchFeedback(UIcanvas, pitchThread.getPitchDirectly().getExactKeyID(), currentSong.getCurrentNote(SystemClock.uptimeMillis()-startTime_ms));
+                                    //Note that the drawPitchFeedback routine also sets the pitchMatchedKeyID flag of the curent note.
                                 }
                                 surfaceHolder.unlockCanvasAndPost(UIcanvas);
                                 //Check the framerate
                                 checkFramerate();
+
+                                //Update isSongPlaying with whether or not the song is over
+                                if(isSongPlaying) {
+                                   if(currentSong.isSongOver(SystemClock.uptimeMillis() - startTime_ms)) {
+                                       Log.i(TAG, "Song complete");
+                                       Log.i(TAG, "Score: " + currentSong.getFinalScore() + "%");
+                                       isSongPlaying = false;
+                                       Message songCompleteMsg = Message.obtain();
+                                       songCompleteMsg.what = SIGNAL_SONG_COMPLETE;
+                                       songCompleteMsg.arg1 = currentSong.getFinalScore();
+                                       parentHandler.sendMessage(songCompleteMsg);
+                                   }
+                                }
+
                                 //Tell myself to do it again.
                                 //This does not try to stabilize the framerate; it'll
                                 //deliver as fast a framerate as the device can render.

@@ -15,16 +15,21 @@ public class vocalSongNote {
     //Duration of the note in the song, in milliseconds
     public float duration_ms;
 
+    //Boolean to indicate whether this pitch was sung
+    public boolean pitchMatchedKeyID;
+
     public vocalSongNote() {
         pianoKeyID  = 49;
         startTime_s = 0;
         duration_ms  = 0;
+        pitchMatchedKeyID = false;
     }
 
     public vocalSongNote(int pianoKeyID, float startTime_s, float duration_ms) {
         this.pianoKeyID = pianoKeyID;
         this.startTime_s = startTime_s;
         this.duration_ms = duration_ms;
+        this.pitchMatchedKeyID = false;
     }
 
     //Constructor to assist deep copying
@@ -32,6 +37,7 @@ public class vocalSongNote {
         this.pianoKeyID = makeCopy.pianoKeyID;
         this.startTime_s = makeCopy.startTime_s;
         this.duration_ms = makeCopy.duration_ms;
+        this.pitchMatchedKeyID = makeCopy.pitchMatchedKeyID;
     }
 
 }

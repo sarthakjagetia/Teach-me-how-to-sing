@@ -24,12 +24,16 @@ public class vocalSong {
     private ArrayList<vocalSongNote> notes;
     private ArrayList<vocalLyric> lyrics;
 
+    //Duration of song in seconds. Calculated inside constructor.
+    private float duration;
+
     //Playback related variables
     private String audioPath;
     private boolean audioPlaybackEnabled;
 
     private final String TAG = "vocalSong";
 
+    /*
     public vocalSong(int numNotes, int numLyrics) {
         notes  = new ArrayList<vocalSongNote>(numNotes);
         lyrics = new ArrayList<vocalLyric>(numLyrics);
@@ -43,10 +47,14 @@ public class vocalSong {
         audioPath = "";
         audioPlaybackEnabled = false;
     }
+    */
 
     public vocalSong(ArrayList<vocalSongNote> songNotes, ArrayList<vocalLyric> songLyrics) {
         this.notes  = songNotes;
         this.lyrics = songLyrics;
+        audioPath = "";
+        audioPlaybackEnabled = false;
+        calculateDuration();
     }
 
     //Note: this function requires, for efficiency, that notes are stored in sequential order
@@ -78,21 +86,26 @@ public class vocalSong {
     }
 
     //Note: this function requires, for efficiency, that notes are stored in sequential order
-    public int getCurrentNote (float currentTime_ms) {
+    public vocalSongNote getCurrentNote (float currentTime_ms) {
         //Loop through the notes in the song and pick out the one that the user should be singing at time currentTime_ms
         for (vocalSongNote nextNote : notes) {
             if (currentTime_ms >= nextNote.startTime_s*1000 && currentTime_ms <= nextNote.startTime_s*1000+nextNote.duration_ms) {
                 //If we've found the note that's playing at currentTime_ms
-                return nextNote.pianoKeyID;
+                //return nextNote.pianoKeyID;
+                //TESTING: Return actual vocalSongNote instead of the integer pianoKeyID. Because it's passed by reference, instead of a
+                //  as a copy, the calling function is able to modfiy the object. This is helpful for setting nextNote.pitchMatchedKeyID.
+                return nextNote;
             }
             else if (nextNote.startTime_s*1000 > currentTime_ms) {
                 //If we've found a note that starts beyond the start of currentTime_ms, stop searching.
                 //Calling function needs to handle this case. No note should be sung right now.
-                return -1;
+                //return -1;
+                return new vocalSongNote(-1,0,0);
             }
         }
         //No note should be sung right now. Calling function needs to handle this case.
-        return -1;
+        //return -1;
+        return new vocalSongNote(-1,0,0);
     }
 
     //Note: this function requires, for efficiency, that notes are stored in sequential order
@@ -116,9 +129,21 @@ public class vocalSong {
         return selectedLyrics;
     }
 
+    private void calculateDuration() {
+        try {
+            vocalSongNote lastNote = notes.get(notes.size()-1);
+            vocalLyric lastLyric = lyrics.get(notes.size()-1);
+
+            duration = max(lastNote.startTime_s+lastNote.duration_ms/1000, lastLyric.startTime_s);
+
+        }
+        catch(IndexOutOfBoundsException e) {
+            Log.e("vocalSong", "Error occurred retreiving last element of song. Is it empty?");
+        }
+    }
 
     public float getSongLength_s() {
-
+        /*
         float duration;
 
         try {
@@ -132,8 +157,17 @@ public class vocalSong {
             Log.e("vocalSong", "Error occurred retreiving last element of song. Is it empty?");
             return 0;
         }
-
+        */
         return duration;
+    }
+
+    public boolean isSongOver(float currentTime_ms) {
+        if (currentTime_ms > duration*1000) {
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     public int getNumNotes() {
@@ -144,13 +178,27 @@ public class vocalSong {
         return lyrics.size();
     }
 
+    public int getFinalScore() {
+        int noteCount = 0;
+        for (vocalSongNote nextNote : notes) {
+            if (nextNote.pitchMatchedKeyID) {
+                noteCount++;
+            }
+        }
+
+        return Math.round((float)noteCount/(float)getNumNotes()*100);
+    }
+
+
+    //SANDBOX AREA. AUDIO PLAYBACK TESTING/DEV.
+
     public void setAudioPath(String path, boolean audioPlaybackEnabled) {
         this.audioPath = path;
         this.audioPlaybackEnabled = audioPlaybackEnabled;
     }
 
     public void setAudioPlayback(boolean audioPlaybackEnabled) {
-            this.audioPlaybackEnabled = audioPlaybackEnabled;
+        this.audioPlaybackEnabled = audioPlaybackEnabled;
     }
 
     public boolean isAudioPlaybackEnabled() {
@@ -158,9 +206,6 @@ public class vocalSong {
     }
 
 
-
-
-    //SANDBOX AREA. AUDIO PLAYBACK TESTING/DEV.
     public void playAudio() {
         if (isAudioPlaybackEnabled()) {
             playbackThread playSong = new playbackThread(this.audioPath);
