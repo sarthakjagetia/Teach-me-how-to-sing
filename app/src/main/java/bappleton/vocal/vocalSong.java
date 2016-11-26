@@ -2,6 +2,7 @@ package bappleton.vocal;
 
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.os.Process;
 import android.util.Log;
 
 import java.lang.reflect.Array;
@@ -149,7 +150,7 @@ public class vocalSong {
     }
 
     public void setAudioPlayback(boolean audioPlaybackEnabled) {
-        this.audioPlaybackEnabled = audioPlaybackEnabled;
+            this.audioPlaybackEnabled = audioPlaybackEnabled;
     }
 
     public boolean isAudioPlaybackEnabled() {
@@ -157,6 +158,9 @@ public class vocalSong {
     }
 
 
+
+
+    //SANDBOX AREA. AUDIO PLAYBACK TESTING/DEV.
     public void playAudio() {
         if (isAudioPlaybackEnabled()) {
             playbackThread playSong = new playbackThread(this.audioPath);
@@ -178,6 +182,7 @@ public class vocalSong {
 
         @Override
         public void run() {
+            android.os.Process.setThreadPriority(android.os.Process.myTid(), Process.THREAD_PRIORITY_AUDIO);
             try {
                 mp = new MediaPlayer();
                 mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
@@ -205,3 +210,5 @@ public class vocalSong {
 
     }
 }
+
+//END SANDBOX

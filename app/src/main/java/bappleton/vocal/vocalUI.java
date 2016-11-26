@@ -798,36 +798,12 @@ public class vocalUI extends SurfaceView implements
                             pitchDetectionRunning = false;
                             break;
                         case CASE_BEGIN_SONG:
-                            //Try embedding media player into this thread
-                            //Even when waiting until a fully-buffered state to begin playback, the music is VERY choppy.
-                            try {
-                                MediaPlayer song = new MediaPlayer();
-                                song.setAudioStreamType(AudioManager.STREAM_MUSIC);
-                                song.setDataSource("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3");
-                                Log.i(TAG, "Playback source set.");
-                                song.prepare();
-                                Log.i(TAG, "Preparation complete.");
-                                song.setOnBufferingUpdateListener(
-                                        new MediaPlayer.OnBufferingUpdateListener() {
-                                            @Override
-                                            public void onBufferingUpdate(MediaPlayer mp, int percent) {
-                                                Log.i(TAG, "Buffering percent: " + percent);
-                                                if (percent == 100 && !mp.isPlaying()) {
-                                                    mp.start();
-                                                }
-                                            }
-                                        }
-                                );
-                                //song.start();
-                            }
-                            catch (Exception e) {
-                                Log.e(TAG, "Playback failed");
-                            }
                             //Set variables to begin rendering
                             startTime_ms = SystemClock.uptimeMillis();
                             isSongPlaying = true;
                             break;
                         case CASE_END_SONG:
+                            //Set variables to stop rendering
                             startTime_ms = 0;
                             isSongPlaying = false;
                             break;
