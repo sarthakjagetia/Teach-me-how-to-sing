@@ -13,7 +13,7 @@ import be.tarsos.dsp.pitch.PitchDetectionResult;
  *          It uses the PitchDetetionResult information to calculate other information pertinent to Vocal
  *          Primarily, this includes:
  *              The piano key number closest in frequency to the detected pitch
- *              The name of the piano key .... ^
+ *              The name of the piano key closest in frequeny to the detected pitch
  *              Error between the exact pitch and the closest piano key, expressed as a percent 0-100
  *          This class is the basis for an object that includes "everything we need to know" about the detected pitch.
  *          It can be passed via Message between threads using the .obj parameter.
@@ -38,6 +38,7 @@ public class vocalPitchResult {
     private int   closestKeyID;
     private String noteName;
     private int errorPercent;
+    private final String TAG = "vocalPitchResult";
 
     vocalPitchResult() {
         A4_frequency = 440;
@@ -60,8 +61,16 @@ public class vocalPitchResult {
     }
 
     private void calculateKeyID() {
-        exactKeyID = (float) (Math.log10(pitchHz_f/A4_frequency)*12/Math.log10(2) + 49);
-        closestKeyID = Math.round(exactKeyID);
+        if (pitchHz_f > 0) {
+            exactKeyID = (float) (Math.log10(pitchHz_f / A4_frequency) * 12 / Math.log10(2) + 49);
+            closestKeyID = Math.round(exactKeyID);
+        }
+        else {
+            //Note that Yin algorithm returns -1 for the frequency when nothing is detected.
+            //Will carry through the -1. Calling functions must handle it as they see fit.
+            exactKeyID = -1;
+            closestKeyID = -1;
+        }
     }
 
     private void calculateErrorClosestNote() {

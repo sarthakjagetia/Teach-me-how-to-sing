@@ -54,8 +54,8 @@ public class pitchDetect {
         //int audioFormat = AudioFormat.ENCODING_PCM_16BIT; //NEEDS to mesh with read() call and bytesPerElement; Use with reading into a short
         int audioFormat = AudioFormat.ENCODING_PCM_FLOAT;
         //bufferElements = 1024; //number of array elements to fetch from AudioRecord
-        //bufferElements = 8192; //185 ms between samples
-        bufferElements = 16384; //370 ms between samples
+        bufferElements = 8192; //185 ms between samples
+        //bufferElements = 16384; //370 ms between samples
         //int bytesPerElement = 2; //when reading into a short, each element consumes 2 bytes
         int bytesPerElement = 4; //when reading into a float, each element consumes 4 bytes
         int bufferSizeInBytes = bufferElements * bytesPerElement;

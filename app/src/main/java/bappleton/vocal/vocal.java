@@ -2,6 +2,8 @@ package bappleton.vocal;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -11,50 +13,44 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 public class vocal extends AppCompatActivity {
 
     private Handler mainHandler;
-    pitchThread pitch_det;
+    pitchDetectThread thread_test;
+    private vocalUIupdate UIupdate;
+    private vocalExerciseLibrary exerciseLibrary;
 
-    //Define int constants for message handling
-    private final int CASE_BRIAN_WAS_HERE           = 1000;
-    private final int CASE_THREAD_IDENTIFY_YOURSELF = 1001;
-    private final int CASE_RECEIVE_PITCH            = 1002;
-    private final int CASE_INITIALIZE               = 1003;
-    private final int CASE_TEAR_DOWN                = 1004;
-    private final int CASE_START_DETECTION          = 1005;
-    private final int CASE_STOP_DETECTION           = 1006;
-    private final int CASE_GET_PITCH                = 1007;
-    private final int CASE_START_MAIN_UI_PITCH_DETECTION = 1008;
-    private final int CASE_STOP_MAIN_UI_PITCH_DETECTION  = 1009;
-    private final int CASE_READY_FOR_PITCH_REQUEST  = 1010;
-    private final int CASE_TEAR_DOWN_MAIN_UI_PITCH_DETECTION = 1011;
+    private final int SIGNAL_DETECTION_RUNNING      = 2004;
+    private final int SIGNAL_DETECTION_STOPPED      = 2005;
+    private final int SIGNAL_SONG_COMPLETE  = 4000;
+    private final int SIGNAL_UI_UPDATE      = 4001;
 
     //Define int constants for permission handling
     public final int PERMISSIONS_REQUEST_RECORD_AUDIO = 2000;
+    public final int PERMISSIONS_REQUEST_INTERNET     = 2001;
     boolean PERMISSIONS_RECORD_AUDIO = false;
+    boolean PERMISSIONS_INTERNET = false;
 
     //Define int constants for application behavior
-    private final int pitch_refresh_period = 250; //Delay between UI updates for pitch, in ms
+    private final int pitch_refresh_period = 100; //Delay between UI updates for pitch, in ms
 
     //Define booleans to control application flow
-    private boolean MAIN_UI_PITCH_DETECTION_RUNNING = false; //Indicates whether the UI thread and pitch detect thread should be in a request pitch/receive pitch loop
-    private boolean MAIN_UI_PITCH_DETECTION_READY = false; //Indicates whether the pitch detect thread is ready to be asked for a pitch
+    private boolean MAIN_UI_SONG_RUNNING = false; //Indicates whether the UI thread and pitch detect thread should be in a request pitch/receive pitch loop
+    
+    private final String TAG = "vocalMain";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+
         setContentView(R.layout.vocal);
-
-        //Instantiate the pitch detection thread and run it
-        pitch_det = new pitchThread();
-        pitch_det.start();
-
-        //Initialize a message to use for communicatio with the pitch detection thread
-        //Message msg_get_pitch = Message.obtain();
 
         //Define a message handler for the main UI thread
         mainHandler = new Handler(Looper.getMainLooper()) {
@@ -62,57 +58,20 @@ public class vocal extends AppCompatActivity {
             @Override
             public void handleMessage(Message inputMessage) {
                 switch (inputMessage.what) {
-                    //handle messages here
-                    case CASE_BRIAN_WAS_HERE:
-                        Log.i("UI_message", "holy sweet jesus");
+                    case SIGNAL_SONG_COMPLETE:
+                        //Recieved message from vocalUI object that the song has ended
+                        MAIN_UI_SONG_RUNNING = false;
+                        Button togglePDButton = (Button) findViewById(R.id.toggleButton);
+                        togglePDButton.setText("PLAY");
+                        vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
+                        VUI.stopRendering();
                         break;
-                    case CASE_READY_FOR_PITCH_REQUEST:
-                        //we get this message back after sending CASE_START_DETECTION to the pitch_det thread
-                        MAIN_UI_PITCH_DETECTION_READY = true;
-                        MAIN_UI_PITCH_DETECTION_RUNNING = true;
-                        //kick off the pitch request loop by sending the first CASE_GET_PITCH message to the pitch_det thread. From here, pitch info is sent to CASE_RECEIVE_PITCH
-                        Message msg_get_first_pitch = Message.obtain();
-                        msg_get_first_pitch.what = CASE_GET_PITCH;
-                        pitch_det.pitchHandler.sendMessage(msg_get_first_pitch);
-                        break;
-                    case CASE_RECEIVE_PITCH:
-                        //Update UI with the pitch
-                        vocalPitchResult vpr = (vocalPitchResult)inputMessage.obj;
-                        updateUIPitchView(vpr);
-                        if (MAIN_UI_PITCH_DETECTION_RUNNING) {
-                            //If we're in a running state, send a new message to the background pitch thread to tell it to give us more pitch data
-                            Message msg_get_pitch = Message.obtain();
-                            msg_get_pitch.what = CASE_GET_PITCH;
-                            pitch_det.pitchHandler.sendMessageDelayed(msg_get_pitch, pitch_refresh_period);
-                        }
-                        break;
-                    case CASE_START_MAIN_UI_PITCH_DETECTION:
-                        //MAIN_UI_PITCH_DETECTION_RUNNING = true;
-                        //Send a new message to the background pitch thread to tell it to give us more pitch data
-                        //Message msg_get_pitch = Message.obtain();
-                        //msg_get_pitch.what = CASE_GET_PITCH;
-                        //pitch_det.pitchHandler.sendMessage(msg_get_pitch);
-
-                        if (MAIN_UI_PITCH_DETECTION_READY){
-                            //If the pitch detection thread is already ready for a pitch request, go ahead and kick off the request loop
-                            MAIN_UI_PITCH_DETECTION_RUNNING = true;
-                            Message msg_get_first_pitch_1 = Message.obtain();
-                            msg_get_first_pitch_1.what = CASE_GET_PITCH;
-                            pitch_det.pitchHandler.sendMessage(msg_get_first_pitch_1);
-                        }
-                        else {
-                            //If it's not yet ready, ask the pitch detection thread to initialize and start recording. We'll get CASE_READY_FOR_PITCH_REQUEST back if it was successful
-                            Message msg_begin_detection = Message.obtain();
-                            msg_begin_detection.what = CASE_START_DETECTION;
-                            pitch_det.pitchHandler.sendMessage(msg_begin_detection);
-                        }
-                        break;
-                    case CASE_STOP_MAIN_UI_PITCH_DETECTION:
-                        MAIN_UI_PITCH_DETECTION_RUNNING = false;
-                        MAIN_UI_PITCH_DETECTION_READY = false;
-                        Message msg_stop_detection = Message.obtain();
-                        msg_stop_detection.what = CASE_STOP_DETECTION;
-                        pitch_det.pitchHandler.sendMessage(msg_stop_detection);
+                    case SIGNAL_UI_UPDATE:
+                        //Received message from vocalUI object with info to update UI
+                        //message.obj received is of type vocalUIupdate
+                        UIupdate = (vocalUIupdate) inputMessage.obj;
+                        updatePlaybackTime(UIupdate.getTimeElapsed(),UIupdate.getTimeRemaining(), UIupdate.getPercentComplete());
+                        updateScore(UIupdate.getScore());
                         break;
                     default:
                         //Let the parent class handle any messages that I don't
@@ -123,133 +82,60 @@ public class vocal extends AppCompatActivity {
 
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
+
+        //Initialze the exercise library and display the info for demo song 1
+        exerciseLibrary = new vocalExerciseLibrary();
+        updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
+        updateScore("");
+
+    }
+
+
+    public void updateScore(String score) {
+        TextView sc = (TextView) findViewById(R.id.scoreView);
+        sc.setText(score);
+    }
+
+    public void updatePlaybackTime(String timeElapsed, String timeRemaining, int percentComplete) {
+        TextView te = (TextView) findViewById(R.id.timeElapsedView);
+        TextView tr = (TextView) findViewById(R.id.timeRemainingView);
+        SeekBar  sb = (SeekBar)  findViewById(R.id.seekBar);
+
+        te.setText(timeElapsed);
+        tr.setText(timeRemaining);
+        sb.setProgress(percentComplete);
+    }
+
+    public void updateSongInfoDisplay(String artist, String trackName) {
+        TextView artist_text = (TextView) findViewById(R.id.artistName);
+        TextView track_text  = (TextView) findViewById(R.id.songName);
+
+        artist_text.setText(artist);
+        track_text.setText(trackName);
     }
 
 
     public void toggleDetection(View view) {
-        //Test background thread message handling
-//        if (pitch_det.pitchHandler != null) {
-//            Message msg = Message.obtain();
-//            msg.what = CASE_THREAD_IDENTIFY_YOURSELF;
-//            pitch_det.pitchHandler.sendMessage(msg);
-//        }
-//        else {
-//            Log.e("PitchHandler", "Null");
-//        }
-        Message togglePD = Message.obtain();
+
+        vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
         Button togglePDButton = (Button) findViewById(R.id.toggleButton);
 
-        if (MAIN_UI_PITCH_DETECTION_RUNNING){
-            //if it's currently running, stop it
-            togglePD.what = CASE_STOP_MAIN_UI_PITCH_DETECTION;
-            togglePDButton.setText("START DETECTION");
+        if(!MAIN_UI_SONG_RUNNING) {
+            VUI.beginRendering();
+            VUI.setSong(exerciseLibrary.demoSong1());
+            //updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
+            VUI.beginSong();
+            VUI.setParentHandler(mainHandler);
+            MAIN_UI_SONG_RUNNING = true;
+            togglePDButton.setText("STOP");
         }
         else {
-            //if it's not currently running, start it
-            togglePD.what = CASE_START_MAIN_UI_PITCH_DETECTION;
-            togglePDButton.setText("STOP DETECTION");
+            VUI.stopRendering();
+            VUI.endSong();
+            MAIN_UI_SONG_RUNNING = false;
+            togglePDButton.setText("PLAY");
         }
 
-        mainHandler.sendMessage(togglePD);
-
-    }
-
-    private void updateUIPitchView(vocalPitchResult vpr) {
-        //TextView pitch_text = (TextView) findViewById(R.id.pitchView);
-        //pitch_text.setText(Integer.toString(pitch) + " Hz");
-
-        TextView pitchView = (TextView) findViewById(R.id.pitchView);
-        TextView freqView = (TextView) findViewById(R.id.freqView);
-        TextView clarityView = (TextView) findViewById(R.id.clarityView);
-        TextView errorView = (TextView) findViewById(R.id.errorView);
-
-        int pitchHz = vpr.getPitchHzInt();
-
-        if (pitchHz == -1) {
-            //if nothing was detected, make the interface respond nicely
-            pitchView.setText("");
-            freqView.setText("0 Hz");
-        }
-        else {
-            //something detected, let's roll
-            pitchView.setText(vpr.getNoteName());
-            freqView.setText(vpr.getPitchHzInt() + " Hz");
-        }
-
-        clarityView.setText(Math.round(vpr.getClarity()*100) + " %");
-        errorView.setText(vpr.getErrorPercent() + " %");
-
-    }
-
-
-    class pitchThread extends Thread {
-        //Declare the handler for this thread
-        public Handler pitchHandler;
-
-        //Declare a pitchDetect object, which provides most of the functionality in this class
-        pitchDetect pd = new pitchDetect();
-        //Message pitch_msg = Message.obtain(); don't do this? error: message object already in use
-
-
-        public pitchThread() {
-            //Do something automatically when this class is constructed
-        }
-
-        @Override
-        public void run() {
-            //Prepare this thread to implement a message queue
-            Looper.prepare();
-
-            //Define the message handler for this thread
-            pitchHandler = new Handler() {
-                @Override
-                public void handleMessage(Message msg) {
-                    switch (msg.what) {
-                        case CASE_THREAD_IDENTIFY_YOURSELF:
-                            //Print the ID of the thread
-                            Log.i("BG_message:", Thread.currentThread().getName());
-                            break;
-                        case CASE_START_DETECTION:
-                            //Initialize recording object, begin recording, begin detection
-                            if(pd.initialize()) {
-                                pd.start();
-                                //send back a message to tell the UI thread that we're ready
-                                Message ready_msg = Message.obtain();
-                                ready_msg.what = CASE_READY_FOR_PITCH_REQUEST;
-                                mainHandler.sendMessage(ready_msg);
-                            }
-                            break;
-                        case CASE_STOP_DETECTION:
-                            //Stop recording, stop detection, release recording object
-                            pd.stop();
-                            pd.tearDown();
-                            break;
-                        case CASE_GET_PITCH:
-                            //Request the pitch from the pitchdetect object, send the result to the UI thread
-                            Message pitch_msg = Message.obtain();
-                            pitch_msg.what = CASE_RECEIVE_PITCH;
-                            //pitch_msg.arg1 = pd.getPitch();
-                            pitch_msg.obj = pd.getPitch();
-                            mainHandler.sendMessage(pitch_msg);
-                            break;
-                        default:
-                            super.handleMessage(msg);
-                    }
-
-                }
-            };
-
-            //TESTING
-            //Try sending a mesage to the main UI thread
-            //Message msg = Message.obtain();
-            //msg.what = CASE_BRIAN_WAS_HERE;
-            //msg.arg1 = 1234;
-            //mainHandler.sendMessage(msg);
-
-            //Begin looping to handle messages
-            Looper.loop();
-
-        }
     }
 
     public void checkPermissions(){
@@ -273,12 +159,30 @@ public class vocal extends AppCompatActivity {
             Log.e("B_RECORD_AUDIO", "Permission unrecognized");
         }
 
+        //Check for permission to access internet
+        permissionCheck = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.INTERNET);
+        if (permissionCheck == PackageManager.PERMISSION_DENIED){
+            Log.i(TAG, "Internet permission denied, requesting permission");
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.INTERNET},
+                    PERMISSIONS_REQUEST_INTERNET);
+        }
+        else if (permissionCheck == PackageManager.PERMISSION_GRANTED){
+            Log.i(TAG, "Internet permission granted");
+            PERMISSIONS_INTERNET = true;
+        }
+        else {
+            Log.e(TAG, "Internet permission state unrecognized.");
+        }
+
+
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case PERMISSIONS_REQUEST_RECORD_AUDIO: {
+            case PERMISSIONS_REQUEST_RECORD_AUDIO:
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -291,10 +195,24 @@ public class vocal extends AppCompatActivity {
                     PERMISSIONS_RECORD_AUDIO = false;
                     Log.i("RECORD_AUDIO", "Permission denied.");
                 }
-                return;
-            }
+                break;
+            case PERMISSIONS_REQUEST_INTERNET:
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // permission was granted, yay!
+                    PERMISSIONS_INTERNET = true;
+                    Log.i(TAG, "Internet permission granted.");
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                    PERMISSIONS_INTERNET = false;
+                    Log.i(TAG, "Internet permission denied.");
+                }
+                break;
             // other 'case' lines to check for other
             // permissions this app might request
         }
+
     }
 }
