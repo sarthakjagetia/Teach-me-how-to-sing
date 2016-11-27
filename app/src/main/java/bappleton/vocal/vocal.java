@@ -86,6 +86,7 @@ public class vocal extends AppCompatActivity {
         //Initialze the exercise library and display the info for demo song 1
         exerciseLibrary = new vocalExerciseLibrary();
         updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
+        updateScore("");
 
     }
 

@@ -268,7 +268,6 @@ public class vocalUI extends SurfaceView implements
         thread.vocalUIHandler.sendMessage(stopRenderMsg);
     }
 
-
     private void configureDisplayConstants() {
 
         //The spacing between the horizontal music note lines
@@ -457,7 +456,7 @@ public class vocalUI extends SurfaceView implements
 
                     //Experimental: Note coloring based on hit success
                     if(thisNote.pitchMatchedKeyID) {
-                        noteRectPaint.setColor(Color.BLUE);
+                        noteRectPaint.setColor(Color.argb(255,0,100,255));
                     }
                     else {
                         noteRectPaint.setColor(Color.GRAY);
@@ -656,8 +655,6 @@ public class vocalUI extends SurfaceView implements
                 lastUpdate_ms = elapsedTime_ms;
             }
 
-
-
         }
 
         @Override
@@ -675,6 +672,12 @@ public class vocalUI extends SurfaceView implements
             //Initialize the UI update object
             mainUIupdate = new vocalUIupdate();
             lastUpdate_ms = 0;
+
+            //Render a frame so we don't have a black box at startup
+            UIcanvas = surfaceHolder.lockCanvas();
+            UIcanvas.drawColor(Color.argb(255,250,250,250));
+            VUI.drawMusicStaff(UIcanvas);
+            surfaceHolder.unlockCanvasAndPost(UIcanvas);
 
             Looper.prepare();
             //Define the message handler for this thread
