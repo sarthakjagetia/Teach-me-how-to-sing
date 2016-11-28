@@ -1,0 +1,5 @@
+#format:
+#[Seconds into song where note that is sung begins] [Pitch of note (frequency, Hz)] [Duration of note, milliseconds] 
+0.5s 550Hz 500ms
+1.0s 260Hz 1000ms
+2.0s 440Hz 250ms 
