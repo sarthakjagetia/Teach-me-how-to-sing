@@ -81,7 +81,7 @@ public class pitchDetectThread extends Thread {
                             }
                         }
                         else {
-                            Log.e(TAG, "Pitch detection is already running.");
+                            Log.w(TAG, "Pitch detection is already running.");
                         }
                         break;
                     case CASE_STOP_DETECTION:
@@ -95,15 +95,19 @@ public class pitchDetectThread extends Thread {
                             Log.i(TAG, "Pitch detection stopped.");
                         }
                         else {
-                            Log.e(TAG, "Nothing to stop. Pitch detection not running.");
+                            Log.w(TAG, "Nothing to stop. Pitch detection not running.");
                         }
                         //Update internal recording flag
                         IS_AR1_RECORDING = false;
                         IS_AR1_INITIALIZED = false;
                         //Send a message to the parent thread to tell it we've stopped detection
+                        //NOTE: This feature currently disabled, because right now the only time we call this is right before
+                        //we destroy the vocalUI thread. We don't want to send messages to a dead thread.
+                        /*
                         Message recordingStopped = Message.obtain();
                         recordingStopped.what = SIGNAL_DETECTION_STOPPED;
                         parentHandler.sendMessage(recordingStopped);
+                        */
                         break;
                     case SIGNAL_PITCH_REQUEST:
                         //Send pitch data to parent handler

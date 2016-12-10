@@ -180,18 +180,25 @@ public class vocalUI extends SurfaceView implements
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         //try to cleanly shut down the thread
-        boolean retry = true;
-        while (retry) {
-            try {
-                thread.join();
-                //if that worked, don't retry
-                retry = false;
-            } catch (InterruptedException e) {
-                //e.printStackTrace();
-                //if that didn't work, try again
-            }
+        Log.i(TAG, "surfaceDestroyed called");
+        stopRendering();
 
+        boolean success = true;
+
+        try {
+            thread.join(250);
+        } catch (InterruptedException e) {
+            //e.printStackTrace();
+            success = false;
         }
+
+        if(success) {
+            Log.i(TAG, "Successfully closed thread.");
+        }
+        else {
+            Log.w(TAG, "Unable to close thread before timeout.");
+        }
+
     }
 
     @Override
@@ -713,35 +720,43 @@ public class vocalUI extends SurfaceView implements
                                 UIcanvas = surfaceHolder.lockCanvas();
                                 //UIcanvas.drawColor(Color.WHITE);
                                 //UIcanvas.drawColor(Color.argb(255,250,250,250));
-                                UIcanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-                                VUI.drawMusicStaff(UIcanvas);
-                                //If we have pitch detection running, provide pitch feedback
-                                if (pitchDetectionRunning) {
-                                    //Presently we will directly grab pitch data from the pitch thread.
-                                    //This is a nice approach because we will get whatever the pitch is at time of rendering.
-                                    //However, I am not sure if it is more kosher to receive data via Message. TBD.
-                                    drawPitchFeedback(UIcanvas, pitchThread.getPitchDirectly().getExactKeyID(), currentSong.getCurrentNote(SystemClock.uptimeMillis()-startTime_ms));
-                                    //Note that the drawPitchFeedback routine also sets the pitchMatchedKeyID flag of the curent note.
-                                }
-                                surfaceHolder.unlockCanvasAndPost(UIcanvas);
-                                //Check the framerate
-                                checkFramerate();
+                                if(UIcanvas != null) {
+                                    //If we've been given a canvas we can edit...
 
-                                //If a song is currenly playing, communicate relevant info back to the main UI
-                                if(isSongPlaying) {
-                                    //Check to see if the song has ended. If so, tell the main UI via message immediately.
-                                   if(currentSong.isSongOver(SystemClock.uptimeMillis() - startTime_ms - timeWindowRenderPastNow)) {
-                                       Log.i(TAG, "Song complete");
-                                       Log.i(TAG, "Score: " + currentSong.getFinalScore() + "%");
-                                       isSongPlaying = false;
-                                       Message songCompleteMsg = Message.obtain();
-                                       songCompleteMsg.what = SIGNAL_SONG_COMPLETE;
-                                       songCompleteMsg.arg1 = currentSong.getFinalScore();
-                                       parentHandler.sendMessage(songCompleteMsg);
-                                       updateMainUI(true);
-                                   }
-                                    //Perform lower-priority periodic main UI updates
-                                    updateMainUI(false);
+                                    UIcanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+                                    VUI.drawMusicStaff(UIcanvas);
+                                    //If we have pitch detection running, provide pitch feedback
+                                    if (pitchDetectionRunning) {
+                                        //Presently we will directly grab pitch data from the pitch thread.
+                                        //This is a nice approach because we will get whatever the pitch is at time of rendering.
+                                        //However, I am not sure if it is more kosher to receive data via Message. TBD.
+                                        drawPitchFeedback(UIcanvas, pitchThread.getPitchDirectly().getExactKeyID(), currentSong.getCurrentNote(SystemClock.uptimeMillis() - startTime_ms));
+                                        //Note that the drawPitchFeedback routine also sets the pitchMatchedKeyID flag of the curent note.
+                                    }
+                                    surfaceHolder.unlockCanvasAndPost(UIcanvas);
+                                    //Check the framerate
+                                    checkFramerate();
+
+                                    //If a song is currenly playing, communicate relevant info back to the main UI
+                                    if (isSongPlaying) {
+                                        //Check to see if the song has ended. If so, tell the main UI via message immediately.
+                                        if (currentSong.isSongOver(SystemClock.uptimeMillis() - startTime_ms - timeWindowRenderPastNow)) {
+                                            Log.i(TAG, "Song complete");
+                                            Log.i(TAG, "Score: " + currentSong.getFinalScore() + "%");
+                                            isSongPlaying = false;
+                                            Message songCompleteMsg = Message.obtain();
+                                            songCompleteMsg.what = SIGNAL_SONG_COMPLETE;
+                                            songCompleteMsg.arg1 = currentSong.getFinalScore();
+                                            parentHandler.sendMessage(songCompleteMsg);
+                                            updateMainUI(true);
+                                        }
+                                        //Perform lower-priority periodic main UI updates
+                                        updateMainUI(false);
+                                    }
+                                }
+                                else {
+                                    //Unable to edit canvas right now.
+                                    Log.w(TAG, "Skipping frame. SurfaceHolder.lockCanvas returned a null canvas. Is the SurfaceView being destroyed?");
                                 }
 
                                 //Tell myself to do it again.
@@ -755,10 +770,13 @@ public class vocalUI extends SurfaceView implements
                             break;
                         case CASE_STOP_RENDERING:
                             running = false;
-                            //Stop pitch detection
+                            //First, stop pitch detection
                             pitchThread.stopPitchDetection();
                             pitchDetectionRunning = false;
                             Log.i(TAG, "Rendering stopped.");
+                            //We are going to kill this rendering thread
+                            //Need to tell the looper to stop handling messages
+                            Looper.myLooper().quit();
                             break;
                         case SIGNAL_DETECTION_RUNNING:
                             Log.i(TAG, "Received confirmation from pitch thread that it is running.");

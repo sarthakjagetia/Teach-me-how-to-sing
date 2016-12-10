@@ -19,7 +19,7 @@ import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
-public class vocal extends AppCompatActivity {
+public class vocal extends AppCompatActivity implements constants {
 
     private Handler mainHandler;
     pitchDetectThread thread_test;
@@ -80,14 +80,38 @@ public class vocal extends AppCompatActivity {
             }
         };
 
+
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
+
+        //Figure out what song was selected
+        String selectedSong = getIntent().getStringExtra(INTENT_SONG);
+        Log.i(TAG, "Loading song " + selectedSong);
+        switch (selectedSong) {
+            case SONG_DO_RE_ME:
+                break;
+            case SONG_XMAS:
+                break;
+            default:
+                Log.e(TAG, "Unrecognized song selection");
+                finish();
+        }
 
         //Initialze the exercise library and display the info for demo song 1
         exerciseLibrary = new vocalExerciseLibrary();
         updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
         updateScore("");
 
+
+    }
+
+
+    //We're going to kill this activity if the user navigates away from it
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        Log.i(TAG, "Back button pressed.");
+        this.finish();
     }
 
 
@@ -116,7 +140,6 @@ public class vocal extends AppCompatActivity {
 
 
     public void toggleDetection(View view) {
-
         vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
         Button togglePDButton = (Button) findViewById(R.id.toggleButton);
 
