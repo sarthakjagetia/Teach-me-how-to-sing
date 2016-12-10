@@ -6,7 +6,9 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PixelFormat;
 import android.graphics.Point;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
@@ -130,6 +132,10 @@ public class vocalUI extends SurfaceView implements
     private void init(Context context) {
         //add callback to surface holder in order to intercept events
         getHolder().addCallback(this);
+
+        //Try to make it transparent
+        this.setZOrderOnTop(true);
+        getHolder().setFormat(PixelFormat.TRANSPARENT);
 
         //create our dedicated thread. Give it a surfaceHolder and myself
         thread = new MainThread(getHolder(), this);
@@ -430,7 +436,7 @@ public class vocalUI extends SurfaceView implements
                     }
 
                     //Scenario 2: Note is encapsulated entirely inside the left and right bounds
-                    else if (thisNote.startTime_s * 1000 > left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms < right_time_bound_ms) {
+                    else if (thisNote.startTime_s * 1000 >= left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms < right_time_bound_ms) {
                         //render the note normally
                         left = (int) (left_pixel_bound + (thisNote.startTime_s * 1000 - left_time_bound_ms) * pixelsPerMillisecond);
                         right = (int) (right_pixel_bound - ((right_time_bound_ms - (thisNote.startTime_s * 1000 + thisNote.duration_ms)) * pixelsPerMillisecond));
@@ -449,7 +455,7 @@ public class vocalUI extends SurfaceView implements
 
                     //Uh oh
                     else {
-                        Log.e("vocalUI", "Attempted to plot out-of-bounds note");
+                        Log.e("vocalUI", "Attempted to plot out-of-bounds note. Time bounds: (" + left_time_bound_ms + "," + right_time_bound_ms + "). This note: (" + thisNote.startTime_s*1000 + "," + (thisNote.startTime_s*1000+thisNote.duration_ms) + ").");
                         //Skip to the next note
                         continue;
                     }
@@ -675,7 +681,7 @@ public class vocalUI extends SurfaceView implements
 
             //Render a frame so we don't have a black box at startup
             UIcanvas = surfaceHolder.lockCanvas();
-            UIcanvas.drawColor(Color.argb(255,250,250,250));
+            UIcanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
             VUI.drawMusicStaff(UIcanvas);
             surfaceHolder.unlockCanvasAndPost(UIcanvas);
 
@@ -706,7 +712,8 @@ public class vocalUI extends SurfaceView implements
                                 //Render a frame
                                 UIcanvas = surfaceHolder.lockCanvas();
                                 //UIcanvas.drawColor(Color.WHITE);
-                                UIcanvas.drawColor(Color.argb(255,250,250,250));
+                                //UIcanvas.drawColor(Color.argb(255,250,250,250));
+                                UIcanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
                                 VUI.drawMusicStaff(UIcanvas);
                                 //If we have pitch detection running, provide pitch feedback
                                 if (pitchDetectionRunning) {

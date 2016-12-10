@@ -8,6 +8,8 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import java.lang.reflect.Array;
+
 import be.tarsos.dsp.pitch.FastYin;
 import be.tarsos.dsp.pitch.PitchDetectionResult;
 
@@ -34,6 +36,12 @@ public class pitchDetectThread extends Thread {
 
 
     private final String TAG = "pitchDetectThread";
+
+
+    //Configuration setting for how audio samples are encoded
+    //Setting this to false will result in the use of 16-bit PCM encoding (shorts)
+    //Useful for compatibility with API < 23, which do not support AudioFormat.ENCODING_PCM_FLOAT.
+    private final boolean FLOAT_ENCODING = false;
 
 
     public pitchDetectThread(Handler parentHandler) {
@@ -119,7 +127,8 @@ public class pitchDetectThread extends Thread {
 
     //OBJECTS FOR FAST YIN APPROACH
     FastYin fy_pitchDetect;
-    float recorder_data_yin[];
+    float recorder_data_yin_f[];
+    short recorder_data_yin_s[];
     PitchDetectionResult pitchDetectResult_yin;
     AudioRecord.OnRecordPositionUpdateListener recordDataAvailable;
     int pitch_yin = 0; //Being replaced with an object
@@ -141,13 +150,23 @@ public class pitchDetectThread extends Thread {
         int audioSource = MediaRecorder.AudioSource.DEFAULT; //MediaRecorder.AudioSource.UNPROCESSED requires API24
         int sampleRateInHz = 44100;
         int channelConfig = AudioFormat.CHANNEL_IN_MONO;
-        //int audioFormat = AudioFormat.ENCODING_PCM_16BIT; //NEEDS to mesh with read() call and bytesPerElement; Use with reading into a short
-        int audioFormat = AudioFormat.ENCODING_PCM_FLOAT;
+        int audioFormat;
+        int bytesPerElement;
+
+        if(FLOAT_ENCODING) {
+            //Use floating-point sample encoding for audio
+            audioFormat = AudioFormat.ENCODING_PCM_FLOAT;
+            bytesPerElement = 4; //when reading into a float, each element consumes 4 bytes
+        }
+        else {
+            //Use 16-bit PCM encoding for audio
+            audioFormat = AudioFormat.ENCODING_PCM_16BIT; //NEEDS to mesh with read() call and bytesPerElement; Use with reading into a short
+            bytesPerElement = 2; //when reading into a short, each element consumes 2 bytes
+        }
+
         //bufferElements = 1024; //number of array elements to fetch from AudioRecord
         //bufferElements = 8192; //185 ms between samples
         bufferElements = 16384; //370 ms between samples
-        //int bytesPerElement = 2; //when reading into a short, each element consumes 2 bytes
-        int bytesPerElement = 4; //when reading into a float, each element consumes 4 bytes
         int bufferSizeInBytes = bufferElements * bytesPerElement;
 
         //Make sure that bufferSizeInByte meets the minimum buffer size (MBS) requirement
@@ -171,10 +190,14 @@ public class pitchDetectThread extends Thread {
             IS_AR1_INITIALIZED = false;
         }
 
-        ///
         //PREPARE A TARSOS YIN OBJECT
         fy_pitchDetect = new FastYin(sampleRateInHz, bufferElements);
-        recorder_data_yin = new float[bufferElements];
+        recorder_data_yin_f = new float[bufferElements];
+        if(! FLOAT_ENCODING) {
+            //If we're not going to get floats from AR1, we'll read audio samples into here,
+            //  and then convert them to floats before sending them to the pitch detection object
+            recorder_data_yin_s = new short[bufferElements];
+        }
         vpr = new vocalPitchResult();
 
         //Make a callback function for the AudioRecord instance.
@@ -207,14 +230,32 @@ public class pitchDetectThread extends Thread {
     }
 
     private void processYin() {
-        pitchDetectResult_yin = fy_pitchDetect.getPitch(recorder_data_yin);
 
-        //Deprecated, mark for delete
-        //pitch_yin = (int) pitchDetectResult_yin.getPitch();
+        if(! FLOAT_ENCODING) {
+            //Yin wants floats. Convert to float array before passing
+            convertAudioToFloat();
+        }
+        pitchDetectResult_yin = fy_pitchDetect.getPitch(recorder_data_yin_f);
 
         //Convert the YIN pitch detection result into VocalPitchDetection object, which allows access to enhanced information
         vpr.setPitchDetectionResult(pitchDetectResult_yin);
 
+    }
+
+    private void convertAudioToFloat() {
+        //Copies data from recorder_data_yin_s (a short array) into recorder_data_yin_f (a float array)
+        //These arrays need to be the same length
+        int L1 = Array.getLength(recorder_data_yin_f);
+        int L2 = Array.getLength(recorder_data_yin_s);
+
+        if (L1 == L2) {
+            for (int i = 0; i < L1; i++) {
+                recorder_data_yin_f[i] = (float)recorder_data_yin_s[i] / (float)32000;
+            }
+        }
+        else{
+            Log.e(TAG, "Cannot convert from short to float. Unequal lengths");
+        }
     }
 
 
@@ -242,7 +283,13 @@ public class pitchDetectThread extends Thread {
 
         if (IS_AR1_INITIALIZED && IS_AR1_RECORDING) {
             //Yin method wants a float. Reading into a float requires API23. So that's going to be our new minimum API?
-            AR1_result = AR1.read(recorder_data_yin, 0, bufferElements, AudioRecord.READ_BLOCKING);
+
+            if (FLOAT_ENCODING) {
+                AR1_result = AR1.read(recorder_data_yin_f, 0, bufferElements, AudioRecord.READ_BLOCKING);
+            }
+            else {
+                AR1_result = AR1.read(recorder_data_yin_s, 0, bufferElements);
+            }
 
             if (AR1_result == bufferElements || AR1_result == 0) {
                 //read completed without error

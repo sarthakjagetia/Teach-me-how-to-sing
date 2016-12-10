@@ -50,7 +50,7 @@ public class vocal extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
 
-        setContentView(R.layout.vocal);
+        setContentView(R.layout.vocal_tablet);
 
         //Define a message handler for the main UI thread
         mainHandler = new Handler(Looper.getMainLooper()) {
@@ -64,7 +64,7 @@ public class vocal extends AppCompatActivity {
                         Button togglePDButton = (Button) findViewById(R.id.toggleButton);
                         togglePDButton.setText("PLAY");
                         vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
-                        VUI.stopRendering();
+                        //VUI.stopRendering();
                         break;
                     case SIGNAL_UI_UPDATE:
                         //Received message from vocalUI object with info to update UI
