@@ -14,7 +14,7 @@ public class vocalExerciseLibrary {
 
     }
 
-    public vocalSong demoSong1() {
+    public vocalSong Exercise1_DoReMe() {
         //Do re me fa so la ti do
 
         ArrayList<vocalSongNote> notes = new ArrayList<vocalSongNote>();

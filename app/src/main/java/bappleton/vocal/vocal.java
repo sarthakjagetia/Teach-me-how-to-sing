@@ -45,6 +45,8 @@ public class vocal extends AppCompatActivity implements constants {
     
     private final String TAG = "vocalMain";
 
+    private vocalSong selectedSongObject;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -84,22 +86,29 @@ public class vocal extends AppCompatActivity implements constants {
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
 
+        //Initialze the exercise library
+        exerciseLibrary = new vocalExerciseLibrary();
+
         //Figure out what song was selected
         String selectedSong = getIntent().getStringExtra(INTENT_SONG);
         Log.i(TAG, "Loading song " + selectedSong);
         switch (selectedSong) {
             case SONG_DO_RE_ME:
+                selectedSongObject = exerciseLibrary.Exercise1_DoReMe();
                 break;
             case SONG_XMAS:
+                selectedSongObject = exerciseLibrary.Exercise1_DoReMe();
+                selectedSongObject.setAudioPath("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3", true);
                 break;
             default:
                 Log.e(TAG, "Unrecognized song selection");
                 finish();
         }
 
-        //Initialze the exercise library and display the info for demo song 1
-        exerciseLibrary = new vocalExerciseLibrary();
-        updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
+        //Display the info for the selected song
+        updateSongInfoDisplay(selectedSongObject.artist, selectedSongObject.trackName);
+
+        //Clear the score display
         updateScore("");
 
 
@@ -145,7 +154,7 @@ public class vocal extends AppCompatActivity implements constants {
 
         if(!MAIN_UI_SONG_RUNNING) {
             VUI.beginRendering();
-            VUI.setSong(exerciseLibrary.demoSong1());
+            VUI.setSong(selectedSongObject);
             //updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
             VUI.beginSong();
             VUI.setParentHandler(mainHandler);
@@ -153,7 +162,7 @@ public class vocal extends AppCompatActivity implements constants {
             togglePDButton.setText("STOP");
         }
         else {
-            VUI.stopRendering();
+            //VUI.stopRendering();
             VUI.endSong();
             MAIN_UI_SONG_RUNNING = false;
             togglePDButton.setText("PLAY");

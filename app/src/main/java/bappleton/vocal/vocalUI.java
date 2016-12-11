@@ -154,11 +154,6 @@ public class vocalUI extends SurfaceView implements
 
     }
 
-    //TO BE DELETED, for pre-integration testing only
-    private void AdditionalTestingInit() {
-        this.setSong(new vocalExerciseLibrary().demoSong1());
-    }
-
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         Log.i("vocalUI", "SurfaceChanged call. Height: " + height + " width: " + width);
@@ -443,7 +438,7 @@ public class vocalUI extends SurfaceView implements
                     }
 
                     //Scenario 2: Note is encapsulated entirely inside the left and right bounds
-                    else if (thisNote.startTime_s * 1000 >= left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms < right_time_bound_ms) {
+                    else if (thisNote.startTime_s * 1000 >= left_time_bound_ms && thisNote.startTime_s * 1000 + thisNote.duration_ms <= right_time_bound_ms) {
                         //render the note normally
                         left = (int) (left_pixel_bound + (thisNote.startTime_s * 1000 - left_time_bound_ms) * pixelsPerMillisecond);
                         right = (int) (right_pixel_bound - ((right_time_bound_ms - (thisNote.startTime_s * 1000 + thisNote.duration_ms)) * pixelsPerMillisecond));
@@ -752,6 +747,10 @@ public class vocalUI extends SurfaceView implements
                                         }
                                         //Perform lower-priority periodic main UI updates
                                         updateMainUI(false);
+
+                                        //TESTING
+                                        Log.i(TAG, "Elapsed time reported by me: " + (SystemClock.uptimeMillis()-startTime_ms) + ". Elapsed time reported by vocalSong: " + currentSong.getElapsedTime_ms());
+                                        //TESTING
                                     }
                                 }
                                 else {
@@ -787,6 +786,9 @@ public class vocalUI extends SurfaceView implements
                             pitchDetectionRunning = false;
                             break;
                         case CASE_BEGIN_SONG:
+                            //Begin playing background audio
+                            currentSong.play();
+                            currentSong.setFinishDelay_ms((long) timeWindowRenderPastNow);
                             //Set variables to begin rendering
                             startTime_ms = SystemClock.uptimeMillis();
                             lastUpdate_ms = 0;

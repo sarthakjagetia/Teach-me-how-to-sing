@@ -3,6 +3,8 @@ package bappleton.vocal;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Process;
+import android.os.SystemClock;
+import android.provider.MediaStore;
 import android.util.Log;
 
 import java.lang.reflect.Array;
@@ -27,13 +29,21 @@ public class vocalSong {
     //Duration of song in seconds. Calculated inside constructor.
     private float duration;
 
-    //Playback related variables
+    //Keeps track of when we started playing the song (insensitive to audio playback)
+    private long startTime_ms;
+    private boolean isSongPlaying;
+    private long finishDelay_ms;
+
+    //Audio playback related variables
     private String audioPath;
     private boolean audioPlaybackEnabled;
+    private boolean audioCurrentlyPlaying;
 
     //General song information
     public String artist;
     public String trackName;
+
+    private MediaPlayer mp;
 
     private final String TAG = "vocalSong";
 
@@ -58,9 +68,11 @@ public class vocalSong {
         this.lyrics = songLyrics;
         this.artist = artist;
         this.trackName = trackName;
+        this.finishDelay_ms = 0;
 
         audioPath = "";
         audioPlaybackEnabled = false;
+        audioCurrentlyPlaying = false;
         calculateDuration();
     }
 
@@ -168,13 +180,40 @@ public class vocalSong {
         return duration;
     }
 
-    public boolean isSongOver(float currentTime_ms) {
-        if (currentTime_ms > duration*1000) {
+    @Deprecated
+    public boolean isSongOver(float elapsedTime_ms) {
+        //Report on whether the song has finished, strictly from a rendering perspective.
+        //Insensitive to what the audio is doing
+        if (elapsedTime_ms > duration*1000) {
             return true;
         }
         else {
             return false;
         }
+    }
+
+    public void setFinishDelay_ms(long delay_ms){
+        this.finishDelay_ms = delay_ms;
+    }
+
+    public boolean isSongOver() {
+        //Report on whether the song has finished, strictly from a rendering perspective.
+        //Insensitive to what the audio is doing
+
+        if(isSongPlaying) {
+            long elapsedTime_ms = SystemClock.uptimeMillis()-startTime_ms;
+            if (elapsedTime_ms > duration * 1000 + finishDelay_ms) {
+                //If we find that the song is over
+                isSongPlaying = false;
+                return true;
+            } else {
+                return false;
+            }
+        }
+        else {
+            return true;
+        }
+
     }
 
     public int getNumNotes() {
@@ -213,20 +252,70 @@ public class vocalSong {
     }
 
 
-    public void playAudio() {
-        if (isAudioPlaybackEnabled()) {
-            playbackThread playSong = new playbackThread(this.audioPath);
-            playSong.start();
+    public long getElapsedTime_ms() {
+        //This function tells us how far we are into the song, relative to our call to play().
+
+        if(isSongOver()) {
+            Log.w(TAG, "Elapsed time was reuqested for a song that is not playing");
         }
+
+        //If we're trying to synchronize to a currently-playing song, we can directly query the song
+        if(audioPlaybackEnabled && audioCurrentlyPlaying) {
+            return mp.getCurrentPosition();
+        }
+
+        //Otherwise, let's just report the duration relative to startTime_ms
         else {
-            Log.w(TAG, "Cannot play. Audio playback is disabled");
+            return SystemClock.uptimeMillis()-startTime_ms;
         }
     }
 
+    public void stop() {
+        if (audioCurrentlyPlaying) {
+            mp.stop();
+            audioCurrentlyPlaying = false;
+        }
+        if (mp != null) {
+            mp.release();
+        }
+        isSongPlaying = false;
+    }
+
+    public void play() {
+        //Records the start time of the song
+        //Begins audio playback if it is enabled
+        if (audioPlaybackEnabled && !audioCurrentlyPlaying) {
+            try {
+                mp = new MediaPlayer();
+                mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                mp.setDataSource(this.audioPath);
+                Log.i(TAG, "Playback source set.");
+                mp.prepare();
+                Log.i(TAG, "Preparation complete.");
+                mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                    @Override
+                    public void onCompletion(MediaPlayer mp) {
+                        audioCurrentlyPlaying = false;
+                    }
+                });
+                mp.start();
+                audioCurrentlyPlaying = true;
+            }
+            catch (Exception e) {
+                Log.e(TAG, "Error beginning audio playback. Disabling playback.");
+                audioPlaybackEnabled = false;
+            }
+        }
+        startTime_ms = SystemClock.uptimeMillis();
+        isSongPlaying = true;
+    }
+
+    /*
     private class playbackThread extends Thread {
 
         public MediaPlayer mp;
         private String audioPath;
+
 
         public playbackThread(String audioPath) {
             this.audioPath = audioPath;
@@ -238,7 +327,7 @@ public class vocalSong {
             try {
                 mp = new MediaPlayer();
                 mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
-                mp.setDataSource("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3");
+                mp.setDataSource(this.audioPath);
                 Log.i(TAG, "Playback source set.");
                 mp.prepare();
                 Log.i(TAG, "Preparation complete.");
@@ -248,19 +337,21 @@ public class vocalSong {
                             public void onBufferingUpdate(MediaPlayer mp, int percent) {
                                 Log.i(TAG, "Buffering percent: " + percent);
                                 if (percent == 100 && !mp.isPlaying()) {
-                                    mp.start();
+                                    //mp.start();
                                 }
                             }
                         }
                 );
-                //song.start();
+                mp.start();
             }
             catch (Exception e) {
 
             }
+            //Try waiting until the media player is done
+            while(mp.isPlaying()) {}
         }
 
-    }
+    } */
 }
 
 //END SANDBOX
