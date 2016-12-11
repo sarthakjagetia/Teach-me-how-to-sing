@@ -97,8 +97,9 @@ public class vocal extends AppCompatActivity implements constants {
                 selectedSongObject = exerciseLibrary.Exercise1_DoReMe();
                 break;
             case SONG_XMAS:
-                selectedSongObject = exerciseLibrary.Exercise1_DoReMe();
-                selectedSongObject.setAudioPath("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3", true);
+                //selectedSongObject = exerciseLibrary.Exercise1_DoReMe();
+                //selectedSongObject.setAudioPath("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3", true);
+                selectedSongObject = exerciseLibrary.Song1_WeWishYou();
                 break;
             default:
                 Log.e(TAG, "Unrecognized song selection");

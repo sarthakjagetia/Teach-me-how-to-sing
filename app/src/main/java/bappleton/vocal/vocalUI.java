@@ -505,7 +505,7 @@ public class vocalUI extends SurfaceView implements
 
                 for (vocalLyric thisLyric : songLyricsCopy) {
 
-                    float textYposition = height;
+                    float textYposition = (float)0.98*height;
 
 
                     //Set x position simply based on the left time bound
