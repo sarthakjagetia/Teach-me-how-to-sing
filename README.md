@@ -32,6 +32,7 @@ In the Song Mode however, the lessons will be long and will include a whole song
 You can directly download a zip file by clicking the green button _Clone or Download_ and the clicking _Download ZIP_.
 3. Start the Android Studio and navigate to the directory where the files were downloaded from the github.
 4. Build the app and choose the option accordingly if you wanna build in the emulator or your own Android device.
+5. Enjoy
 
 ## Contributing
 *WE ARE OPEN TO ALL KIND OF SUGGESTIONS AND CONTRIBUTIONS*
