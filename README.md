@@ -15,6 +15,11 @@ We plan to achive the goal by doing real time pitch detection based on *[YIN Pit
 
 <img src="https://github.com/sarthakjagetia/Teach-me-how-to-sing/blob/images/Screenshot_1481491567.png" width="250" height="400" />
 
+We have also implemented a rudimemtary scoring algorithm which scores users based on how close they were to the reference pitch while singing.
+The app has 2 modes: 
+1. Exercise mode
+2. Song mode
+
 ## Installation
 1. From your terminal or command prompt go to the directory where you want to copy the files of the project.
 <img src="https://github.com/sarthakjagetia/Teach-me-how-to-sing/blob/images/Screen%20Shot%202016-12-11%20at%2015.07.50.png" width="700" height="400" />
