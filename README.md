@@ -20,6 +20,9 @@ The app has 2 modes:
 1. Exercise mode
 2. Song mode
 
+In the Exercise Mode, we expect the user to be an inexperienced singer so that the app will repeatedly give lessons on how to sing untill he is able to sing at the required pitch. The lessons will be short and easy for the ease of training. Think of it as a Smart Karaoke 
+In the Song Mode however, the lessons will be long and will include a whole song. Here the user will be graded again based on his singing just like a normal karaoke app.
+
 ## Installation
 1. From your terminal or command prompt go to the directory where you want to copy the files of the project.
 <img src="https://github.com/sarthakjagetia/Teach-me-how-to-sing/blob/images/Screen%20Shot%202016-12-11%20at%2015.07.50.png" width="700" height="400" />
