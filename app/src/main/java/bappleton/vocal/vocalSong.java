@@ -32,6 +32,7 @@ public class vocalSong {
     //Keeps track of when we started playing the song (insensitive to audio playback)
     private long startTime_ms;
     private boolean isSongPlaying;
+    private boolean didSongJustEnd;
     private long finishDelay_ms;
 
     //Audio playback related variables
@@ -73,6 +74,7 @@ public class vocalSong {
         audioPath = "";
         audioPlaybackEnabled = false;
         audioCurrentlyPlaying = false;
+        didSongJustEnd = false;
         calculateDuration();
     }
 
@@ -204,7 +206,7 @@ public class vocalSong {
             long elapsedTime_ms = SystemClock.uptimeMillis()-startTime_ms;
             if (elapsedTime_ms > duration * 1000 + finishDelay_ms) {
                 //If we find that the song is over
-                isSongPlaying = false;
+                stop();
                 return true;
             } else {
                 return false;
@@ -214,6 +216,20 @@ public class vocalSong {
             return true;
         }
 
+    }
+
+    public boolean didSongJustEnd() {
+        //This is a flag that returns true exactly once after a song ends
+        //This can be helpful for the calling function to do something special when a song has just ended
+        //E.g., update the main UI or calculate a final score
+
+        if (didSongJustEnd) {
+            didSongJustEnd = false;
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     public int getNumNotes() {
@@ -233,6 +249,12 @@ public class vocalSong {
         }
 
         return Math.round((float)noteCount/(float)getNumNotes()*100);
+    }
+
+    public void resetScore() {
+        for (vocalSongNote nextNote : notes) {
+            nextNote.pitchMatchedKeyID = false;
+        }
     }
 
 
@@ -255,10 +277,6 @@ public class vocalSong {
     public long getElapsedTime_ms() {
         //This function tells us how far we are into the song, relative to our call to play().
 
-        if(isSongOver()) {
-            Log.w(TAG, "Elapsed time was reuqested for a song that is not playing");
-        }
-
         //If we're trying to synchronize to a currently-playing song, we can directly query the song
         if(audioPlaybackEnabled && audioCurrentlyPlaying) {
             return mp.getCurrentPosition();
@@ -279,6 +297,7 @@ public class vocalSong {
             mp.release();
         }
         isSongPlaying = false;
+        didSongJustEnd = true;
     }
 
     public void play() {
@@ -308,6 +327,7 @@ public class vocalSong {
         }
         startTime_ms = SystemClock.uptimeMillis();
         isSongPlaying = true;
+        didSongJustEnd = false;
     }
 
     /*
