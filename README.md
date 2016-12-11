@@ -12,7 +12,11 @@ We plan to achive the goal by doing real time pitch detection based on *YIN Pitc
 2. Then type the following command `git clone https://github.com/sarthakjagetia/Teach-me-how-to-sing.git`
                                         OR
 You can directly download a zip file by clicking the green button _Clone or Download_ and the clicking _Download ZIP_.
+
+<img src="https://github.com/sarthakjagetia/Teach-me-how-to-sing/blob/images/Screen%20Shot%202016-12-11%20at%2015.07.50.png" width="700" height="400" />
+
 3. Start the Android Studio and navigate to the directory where the files were downloaded from the github.
+4. Build the app and choose the option accordingly if you wanna build in the emulator or your own Android device.
 
 ## Usage
 TODO: Write usage instructions
