@@ -20,7 +20,8 @@ The app has 2 modes:
 1. Exercise mode
 2. Song mode
 
-In the Exercise Mode, we expect the user to be an inexperienced singer so that the app will repeatedly give lessons on how to sing untill he is able to sing at the required pitch. The lessons will be short and easy for the ease of training. Think of it as a Smart Karaoke 
+In the Exercise Mode, we expect the user to be an inexperienced singer so that the app will repeatedly give lessons on how to sing untill he is able to sing at the required pitch. The lessons will be short and easy for the ease of training. _Think of it as a Smart Karaoke_. 
+
 In the Song Mode however, the lessons will be long and will include a whole song. Here the user will be graded again based on his singing just like a normal karaoke app.
 
 ## Installation
