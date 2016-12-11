@@ -11,7 +11,7 @@ Team Members:
 
 
 We are a team of 4 graduate students trying to make an Android app called **VOCAL** which will teach users how to sing.
-We plan to achive the goal by doing real time pitch detection based on *YIN Pitch Detection Algorithm* and provide the feedback to the user via a pointer and a background of musical note scale as shown below...
+We plan to achive the goal by doing real time pitch detection based on *[YIN Pitch Detection Algorithm](http://audition.ens.fr/adc/pdf/2002_JASA_YIN.pdf)* and provide the feedback to the user via a pointer and a background of musical note scale as shown below...
 
 <img src="https://github.com/sarthakjagetia/Teach-me-how-to-sing/blob/images/Screenshot_1481491567.png" width="250" height="400" />
 
@@ -34,10 +34,15 @@ You can directly download a zip file by clicking the green button _Clone or Down
 5. Submit a pull request :D
 
 ## Credits
-Prof. Osama Alshaykh for providing us the platform and the opportuinity to develop the app.
-And all the team members who have done a great job for their valuable inputs and fine programming skills.
+We would like to thank Prof. Osama Alshaykh for providing us the platform and the opportuinity to develop the app.
+And cheers to all the team members who have done a great job for their valuable inputs and fine programming skills.
 
 ## License
-TODO: Write license
+[The MIT License (MIT)](https://opensource.org/licenses/mit-license.php)
+Copyright (c) <year> <copyright holders>
 
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
