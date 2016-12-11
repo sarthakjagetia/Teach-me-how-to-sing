@@ -4,7 +4,9 @@
 
 We are a team of 4 graduate students trying to make an Android app called **VOCAL** which will teach users how to sing.
 We plan to achive the goal by doing real time pitch detection based on *YIN Pitch Detection Algorithm* and provide the feedback to the user via a pointer and a background of musical note scale.
-![ScreenShot](https://github.com/sarthakjagetia/Teach-me-how-to-sing/blob/images/Screenshot_1481491567.png)
+
+<img src="https://github.com/sarthakjagetia/Teach-me-how-to-sing/blob/images/Screenshot_1481491567.png" width="250" height="400" />
+
 ## Installation
 TODO: Describe the installation process
 ## Usage
