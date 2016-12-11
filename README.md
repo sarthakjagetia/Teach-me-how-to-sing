@@ -3,10 +3,8 @@
 **EC601 Project: Teach Me How To Sing**
 
 We are a team of 4 graduate students trying to make an Android app called **VOCAL** which will teach users how to sing.
-We plan to achive the goal by doing real time pitch detection based on *YIN Pitch Detection Algorithm* and provide the feedback to the user via a pointer and a background of musical note scale
-
-![ScreenShot]()
- 
+We plan to achive the goal by doing real time pitch detection based on *YIN Pitch Detection Algorithm* and provide the feedback to the user via a pointer and a background of musical note scale.
+![ScreenShot](https://github.com/sarthakjagetia/Teach-me-how-to-sing/blob/images/Screenshot_1481491567.png)
 ## Installation
 TODO: Describe the installation process
 ## Usage
