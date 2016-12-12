@@ -44,7 +44,7 @@ You can directly download a zip file by clicking the green button _Clone or Down
 5. Submit a pull request :D
 
 ## Credits
-We would like to thank Prof. Osama Alshaykh for providing us the platform and the opportuinity to develop the app.
+We would like to thank Prof. Osama Alshaykh for providing us the platform and the opportunity to develop the app.
 And cheers to all the team members who have done a great job for their valuable inputs and fine programming skills.
 
 ## License
