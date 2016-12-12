@@ -19,7 +19,7 @@ import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
-public class vocal extends AppCompatActivity {
+public class vocal extends AppCompatActivity implements constants {
 
     private Handler mainHandler;
     pitchDetectThread thread_test;
@@ -45,12 +45,14 @@ public class vocal extends AppCompatActivity {
     
     private final String TAG = "vocalMain";
 
+    private vocalSong selectedSongObject;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
 
-        setContentView(R.layout.vocal);
+        setContentView(R.layout.vocal_tablet);
 
         //Define a message handler for the main UI thread
         mainHandler = new Handler(Looper.getMainLooper()) {
@@ -64,7 +66,7 @@ public class vocal extends AppCompatActivity {
                         Button togglePDButton = (Button) findViewById(R.id.toggleButton);
                         togglePDButton.setText("PLAY");
                         vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
-                        VUI.stopRendering();
+                        //VUI.stopRendering();
                         break;
                     case SIGNAL_UI_UPDATE:
                         //Received message from vocalUI object with info to update UI
@@ -80,14 +82,46 @@ public class vocal extends AppCompatActivity {
             }
         };
 
+
         //This app requires use of the microphone. Check recording permissions and request if necessary.
         checkPermissions();
 
-        //Initialze the exercise library and display the info for demo song 1
+        //Initialze the exercise library
         exerciseLibrary = new vocalExerciseLibrary();
-        updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
+
+        //Figure out what song was selected
+        String selectedSong = getIntent().getStringExtra(INTENT_SONG);
+        Log.i(TAG, "Loading song " + selectedSong);
+        switch (selectedSong) {
+            case SONG_DO_RE_ME:
+                selectedSongObject = exerciseLibrary.Exercise1_DoReMe();
+                break;
+            case SONG_XMAS:
+                //selectedSongObject = exerciseLibrary.Exercise1_DoReMe();
+                //selectedSongObject.setAudioPath("https://s3.amazonaws.com/vocal-contentdelivery-mobilehub-1874297389/Good+Friday+(feat.+Common%2C+Pusha+T%2C.mp3", true);
+                selectedSongObject = exerciseLibrary.Song1_WeWishYou();
+                break;
+            default:
+                Log.e(TAG, "Unrecognized song selection");
+                finish();
+        }
+
+        //Display the info for the selected song
+        updateSongInfoDisplay(selectedSongObject.artist, selectedSongObject.trackName);
+
+        //Clear the score display
         updateScore("");
 
+
+    }
+
+
+    //We're going to kill this activity if the user navigates away from it
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        Log.i(TAG, "Back button pressed.");
+        this.finish();
     }
 
 
@@ -116,13 +150,12 @@ public class vocal extends AppCompatActivity {
 
 
     public void toggleDetection(View view) {
-
         vocalUI VUI = (vocalUI) findViewById(R.id.vocalUIdisplay);
         Button togglePDButton = (Button) findViewById(R.id.toggleButton);
 
         if(!MAIN_UI_SONG_RUNNING) {
             VUI.beginRendering();
-            VUI.setSong(exerciseLibrary.demoSong1());
+            VUI.setSong(selectedSongObject);
             //updateSongInfoDisplay(exerciseLibrary.demoSong1().artist, exerciseLibrary.demoSong1().trackName);
             VUI.beginSong();
             VUI.setParentHandler(mainHandler);
@@ -130,7 +163,7 @@ public class vocal extends AppCompatActivity {
             togglePDButton.setText("STOP");
         }
         else {
-            VUI.stopRendering();
+            //VUI.stopRendering();
             VUI.endSong();
             MAIN_UI_SONG_RUNNING = false;
             togglePDButton.setText("PLAY");
